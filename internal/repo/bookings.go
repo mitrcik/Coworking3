@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strconv"
 	"time"
 
 	"coworking/internal/models"
@@ -110,24 +111,29 @@ func (r *BookingRepo) Create(ctx context.Context, userID, workspaceID string, st
 	return id, nil
 }
 
-// BookingView is a row joined with workspace name/type for display.
+// BookingView is a row joined with workspace and user info for display.
 type BookingView struct {
 	models.Booking
 	WorkspaceName string
 	WorkspaceType models.WorkspaceType
 	Zone          string
+	UserEmail     string
+	UserFullName  string
 }
+
+const baseSelect = `
+    SELECT b.booking_id, b.user_id, b.workspace_id, b.start_time, b.end_time, b.status,
+           b.created_at, b.cancelled_at,
+           w.name, w.type, w.zone,
+           u.email, u.full_name
+    FROM bookings b
+    JOIN workspaces w ON w.workspace_id = b.workspace_id
+    JOIN users u      ON u.user_id      = b.user_id
+`
 
 // ListByUser returns bookings for the given user, optionally filtered by status.
 func (r *BookingRepo) ListByUser(ctx context.Context, userID string, statuses []models.BookingStatus) ([]BookingView, error) {
-	q := `
-        SELECT b.booking_id, b.user_id, b.workspace_id, b.start_time, b.end_time, b.status,
-               b.created_at, b.cancelled_at,
-               w.name, w.type, w.zone
-        FROM bookings b
-        JOIN workspaces w ON w.workspace_id = b.workspace_id
-        WHERE b.user_id = $1
-    `
+	q := baseSelect + ` WHERE b.user_id = $1`
 	args := []any{userID}
 	if len(statuses) > 0 {
 		q += " AND b.status = ANY($2)"
@@ -141,23 +147,37 @@ func (r *BookingRepo) ListByUser(ctx context.Context, userID string, statuses []
 	return r.queryViews(ctx, q, args...)
 }
 
-// ListAll returns every booking (used by admin views).
-func (r *BookingRepo) ListAll(ctx context.Context, statuses []models.BookingStatus) ([]BookingView, error) {
-	q := `
-        SELECT b.booking_id, b.user_id, b.workspace_id, b.start_time, b.end_time, b.status,
-               b.created_at, b.cancelled_at,
-               w.name, w.type, w.zone
-        FROM bookings b
-        JOIN workspaces w ON w.workspace_id = b.workspace_id
-    `
+// AdminBookingFilter narrows the admin booking list.
+type AdminBookingFilter struct {
+	Status      string // CONFIRMED / COMPLETED / CANCELLED_BY_USER / CANCELLED_BY_ADMIN
+	UserEmail   string // substring match
+	WorkspaceID string
+	From        *time.Time // start_time >= From
+	To          *time.Time // start_time <  To
+}
+
+// ListAll returns every booking with optional filters (for admin views).
+func (r *BookingRepo) ListAll(ctx context.Context, f AdminBookingFilter) ([]BookingView, error) {
+	q := baseSelect + " WHERE 1=1"
 	args := []any{}
-	if len(statuses) > 0 {
-		q += " WHERE b.status = ANY($1)"
-		statusStrs := make([]string, len(statuses))
-		for i, s := range statuses {
-			statusStrs[i] = string(s)
-		}
-		args = append(args, pqArray(statusStrs))
+	add := func(clause string, val any) {
+		args = append(args, val)
+		q += " AND " + clause + " $" + strconv.Itoa(len(args))
+	}
+	if f.Status != "" {
+		add("b.status =", f.Status)
+	}
+	if f.WorkspaceID != "" {
+		add("b.workspace_id =", f.WorkspaceID)
+	}
+	if f.UserEmail != "" {
+		add("u.email ILIKE", "%"+f.UserEmail+"%")
+	}
+	if f.From != nil {
+		add("b.start_time >=", *f.From)
+	}
+	if f.To != nil {
+		add("b.start_time <", *f.To)
 	}
 	q += " ORDER BY b.start_time DESC"
 	return r.queryViews(ctx, q, args...)
@@ -171,55 +191,46 @@ func (r *BookingRepo) queryViews(ctx context.Context, q string, args ...any) ([]
 	defer rows.Close()
 	var out []BookingView
 	for rows.Next() {
-		var v BookingView
-		var status, wtype string
-		var cancelled sql.NullTime
-		if err := rows.Scan(
-			&v.ID, &v.UserID, &v.WorkspaceID, &v.StartTime, &v.EndTime, &status,
-			&v.CreatedAt, &cancelled,
-			&v.WorkspaceName, &wtype, &v.Zone,
-		); err != nil {
+		v, err := scanBookingView(rows)
+		if err != nil {
 			return nil, err
-		}
-		v.Status = models.BookingStatus(status)
-		v.WorkspaceType = models.WorkspaceType(wtype)
-		if cancelled.Valid {
-			t := cancelled.Time
-			v.CancelledAt = &t
 		}
 		out = append(out, v)
 	}
 	return out, rows.Err()
 }
 
-func (r *BookingRepo) FindByID(ctx context.Context, id string) (*BookingView, error) {
-	const q = `
-        SELECT b.booking_id, b.user_id, b.workspace_id, b.start_time, b.end_time, b.status,
-               b.created_at, b.cancelled_at,
-               w.name, w.type, w.zone
-        FROM bookings b
-        JOIN workspaces w ON w.workspace_id = b.workspace_id
-        WHERE b.booking_id = $1
-    `
-	row := r.DB.QueryRowContext(ctx, q, id)
+type rowScanner interface{ Scan(...any) error }
+
+func scanBookingView(s rowScanner) (BookingView, error) {
 	var v BookingView
 	var status, wtype string
 	var cancelled sql.NullTime
-	if err := row.Scan(
+	if err := s.Scan(
 		&v.ID, &v.UserID, &v.WorkspaceID, &v.StartTime, &v.EndTime, &status,
 		&v.CreatedAt, &cancelled,
 		&v.WorkspaceName, &wtype, &v.Zone,
+		&v.UserEmail, &v.UserFullName,
 	); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrBookingNotFound
-		}
-		return nil, err
+		return v, err
 	}
 	v.Status = models.BookingStatus(status)
 	v.WorkspaceType = models.WorkspaceType(wtype)
 	if cancelled.Valid {
 		t := cancelled.Time
 		v.CancelledAt = &t
+	}
+	return v, nil
+}
+
+func (r *BookingRepo) FindByID(ctx context.Context, id string) (*BookingView, error) {
+	row := r.DB.QueryRowContext(ctx, baseSelect+` WHERE b.booking_id = $1`, id)
+	v, err := scanBookingView(row)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrBookingNotFound
+		}
+		return nil, err
 	}
 	return &v, nil
 }

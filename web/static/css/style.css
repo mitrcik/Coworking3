@@ -213,6 +213,26 @@ a.map__seat       { text-decoration: none; cursor: pointer; }
   color: #fff;
 }
 
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 14px;
+}
+.full-width { width: 100%; }
+.form-block { margin-bottom: 12px; }
+.inline-form { margin-top: 8px; }
+.admin-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.admin-actions .btn { padding: 6px 12px; font-size: 13px; }
+details > summary { cursor: pointer; padding: 6px 0; }
+details[open] > summary { margin-bottom: 8px; }
+
 .form--row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: end; }
 .form--row .btn { grid-column: 1 / -1; }
 

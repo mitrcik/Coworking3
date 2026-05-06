@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"coworking/internal/auth"
@@ -104,7 +105,7 @@ func (a *App) bookingCreateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if active >= settings.MaxActiveBookingsPerUser {
 		redirectScheme(w, r, dateStr, startStr, endStr, wsID,
-			"Превышен лимит активных бронирований ("+itoa(settings.MaxActiveBookingsPerUser)+")")
+			"Превышен лимит активных бронирований ("+strconv.Itoa(settings.MaxActiveBookingsPerUser)+")")
 		return
 	}
 
@@ -151,24 +152,3 @@ func redirectScheme(w http.ResponseWriter, r *http.Request, date, start, end, ws
 	http.Redirect(w, r, "/scheme?"+q.Encode(), http.StatusSeeOther)
 }
 
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	neg := n < 0
-	if neg {
-		n = -n
-	}
-	var buf [20]byte
-	i := len(buf)
-	for n > 0 {
-		i--
-		buf[i] = byte('0' + n%10)
-		n /= 10
-	}
-	if neg {
-		i--
-		buf[i] = '-'
-	}
-	return string(buf[i:])
-}

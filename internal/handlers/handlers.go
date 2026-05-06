@@ -57,7 +57,14 @@ func (a *App) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/bookings", a.requireUser(a.bookingsHandler))
 	mux.HandleFunc("/bookings/create", a.requireUser(a.bookingCreateHandler))
 	mux.HandleFunc("/bookings/cancel", a.requireUser(a.bookingCancelHandler))
-	mux.HandleFunc("/admin", a.requireAdmin(a.adminHandler))
+	mux.HandleFunc("/admin", a.requireAdmin(a.adminPanelHandler))
+	mux.HandleFunc("/admin/workspaces/create", a.requireAdmin(a.adminWorkspaceCreateHandler))
+	mux.HandleFunc("/admin/workspaces/update", a.requireAdmin(a.adminWorkspaceUpdateHandler))
+	mux.HandleFunc("/admin/workspaces/toggle", a.requireAdmin(a.adminWorkspaceToggleHandler))
+	mux.HandleFunc("/admin/workspaces/delete", a.requireAdmin(a.adminWorkspaceDeleteHandler))
+	mux.HandleFunc("/admin/bookings/cancel", a.requireAdmin(a.adminBookingCancelHandler))
+	mux.HandleFunc("/admin/bookings/status", a.requireAdmin(a.adminBookingStatusHandler))
+	mux.HandleFunc("/admin/settings", a.requireAdmin(a.adminSettingsHandler))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
@@ -226,30 +233,4 @@ func humanStatus(s models.BookingStatus) string {
 	}
 }
 
-func (a *App) adminHandler(w http.ResponseWriter, r *http.Request) {
-	workspaces, err := a.Workspaces.List(r.Context())
-	if err != nil {
-		log.Printf("admin list workspaces: %v", err)
-		http.Error(w, "Не удалось загрузить данные админки", http.StatusInternalServerError)
-		return
-	}
-	allBookings, err := a.Bookings.ListAll(r.Context(), nil)
-	if err != nil {
-		log.Printf("admin list bookings: %v", err)
-		http.Error(w, "Не удалось загрузить данные админки", http.StatusInternalServerError)
-		return
-	}
-	settings, err := a.Settings.Get(r.Context())
-	if err != nil {
-		log.Printf("admin get settings: %v", err)
-		http.Error(w, "Не удалось загрузить настройки", http.StatusInternalServerError)
-		return
-	}
-	pd := pageDataFor(r, "Админ-панель", "admin")
-	pd.Data = map[string]any{
-		"Workspaces":     workspaces,
-		"Bookings":       allBookings,
-		"MaxActiveLimit": settings.MaxActiveBookingsPerUser,
-	}
-	render(w, "admin.html", pd)
-}
+
