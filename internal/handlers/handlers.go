@@ -5,7 +5,15 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+
+	"coworking/internal/models"
+	"coworking/internal/repo"
 )
+
+// App carries shared dependencies (database repositories, config) for handlers.
+type App struct {
+	Workspaces *repo.WorkspaceRepo
+}
 
 var pageTemplates = map[string]*template.Template{}
 
@@ -30,17 +38,17 @@ func init() {
 	}
 }
 
-// Register registers all HTTP handlers.
-func Register(mux *http.ServeMux) {
+// Register registers all HTTP handlers on the given mux.
+func (a *App) Register(mux *http.ServeMux) {
 	staticDir := http.Dir(filepath.Join("web", "static"))
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(staticDir)))
 
-	mux.HandleFunc("/", homeHandler)
-	mux.HandleFunc("/login", loginHandler)
-	mux.HandleFunc("/register", registerHandler)
-	mux.HandleFunc("/scheme", schemeHandler)
-	mux.HandleFunc("/bookings", bookingsHandler)
-	mux.HandleFunc("/admin", adminHandler)
+	mux.HandleFunc("/", a.homeHandler)
+	mux.HandleFunc("/login", a.loginHandler)
+	mux.HandleFunc("/register", a.registerHandler)
+	mux.HandleFunc("/scheme", a.schemeHandler)
+	mux.HandleFunc("/bookings", a.bookingsHandler)
+	mux.HandleFunc("/admin", a.adminHandler)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
@@ -70,7 +78,7 @@ func render(w http.ResponseWriter, name string, data pageData) {
 	}
 }
 
-func homeHandler(w http.ResponseWriter, r *http.Request) {
+func (a *App) homeHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
 		return
@@ -86,25 +94,25 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func loginHandler(w http.ResponseWriter, r *http.Request) {
+func (a *App) loginHandler(w http.ResponseWriter, r *http.Request) {
 	render(w, "login.html", pageData{
 		Title:     "Вход",
 		ActiveTab: "auth",
 	})
 }
 
-func registerHandler(w http.ResponseWriter, r *http.Request) {
+func (a *App) registerHandler(w http.ResponseWriter, r *http.Request) {
 	render(w, "register.html", pageData{
 		Title:     "Регистрация",
 		ActiveTab: "auth",
 	})
 }
 
-// mockWorkspace is used only in stage 1 to render the layout.
-type mockWorkspace struct {
-	ID        int
+// schemeWorkspace adapts a DB workspace to the template view model.
+type schemeWorkspace struct {
+	ID        string
 	Name      string
-	Type      string
+	Type      models.WorkspaceType
 	Zone      string
 	IsFree    bool
 	Available bool
@@ -112,26 +120,31 @@ type mockWorkspace struct {
 	Y         int
 }
 
-func mockWorkspaces() []mockWorkspace {
-	return []mockWorkspace{
-		{ID: 1, Name: "A1", Type: "DESK", Zone: "Тихая", IsFree: true, Available: true, X: 1, Y: 1},
-		{ID: 2, Name: "A2", Type: "DESK", Zone: "Тихая", IsFree: false, Available: true, X: 2, Y: 1},
-		{ID: 3, Name: "A3", Type: "DESK", Zone: "Тихая", IsFree: true, Available: true, X: 3, Y: 1},
-		{ID: 4, Name: "B1", Type: "DESK", Zone: "Командная", IsFree: true, Available: true, X: 1, Y: 2},
-		{ID: 5, Name: "B2", Type: "DESK", Zone: "Командная", IsFree: false, Available: false, X: 2, Y: 2},
-		{ID: 6, Name: "B3", Type: "DESK", Zone: "Командная", IsFree: true, Available: true, X: 3, Y: 2},
-		{ID: 7, Name: "M1", Type: "MEETING_ROOM", Zone: "Переговорные", IsFree: true, Available: true, X: 1, Y: 3},
-		{ID: 8, Name: "M2", Type: "MEETING_ROOM", Zone: "Переговорные", IsFree: false, Available: true, X: 2, Y: 3},
-		{ID: 9, Name: "L1", Type: "LOUNGE", Zone: "Лаунж", IsFree: true, Available: true, X: 3, Y: 3},
+func (a *App) schemeHandler(w http.ResponseWriter, r *http.Request) {
+	workspaces, err := a.Workspaces.List(r.Context())
+	if err != nil {
+		log.Printf("list workspaces: %v", err)
+		http.Error(w, "Не удалось загрузить схему", http.StatusInternalServerError)
+		return
 	}
-}
-
-func schemeHandler(w http.ResponseWriter, r *http.Request) {
+	views := make([]schemeWorkspace, 0, len(workspaces))
+	for _, ws := range workspaces {
+		views = append(views, schemeWorkspace{
+			ID:        ws.ID,
+			Name:      ws.Name,
+			Type:      ws.Type,
+			Zone:      ws.Zone,
+			IsFree:    ws.IsAvailable,
+			Available: ws.IsAvailable,
+			X:         ws.PositionX,
+			Y:         ws.PositionY,
+		})
+	}
 	render(w, "scheme.html", pageData{
 		Title:     "Схема коворкинга",
 		ActiveTab: "scheme",
 		Data: map[string]any{
-			"Workspaces": mockWorkspaces(),
+			"Workspaces": views,
 			"Date":       "2025-12-01",
 			"Start":      "09:00",
 			"End":        "12:00",
@@ -158,7 +171,7 @@ func mockBookings() []mockBooking {
 	}
 }
 
-func bookingsHandler(w http.ResponseWriter, r *http.Request) {
+func (a *App) bookingsHandler(w http.ResponseWriter, r *http.Request) {
 	render(w, "bookings.html", pageData{
 		Title:      "Мои бронирования",
 		ActiveTab:  "bookings",
@@ -170,7 +183,26 @@ func bookingsHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func adminHandler(w http.ResponseWriter, r *http.Request) {
+func (a *App) adminHandler(w http.ResponseWriter, r *http.Request) {
+	workspaces, err := a.Workspaces.List(r.Context())
+	if err != nil {
+		log.Printf("admin list workspaces: %v", err)
+		http.Error(w, "Не удалось загрузить данные админки", http.StatusInternalServerError)
+		return
+	}
+	views := make([]schemeWorkspace, 0, len(workspaces))
+	for _, ws := range workspaces {
+		views = append(views, schemeWorkspace{
+			ID:        ws.ID,
+			Name:      ws.Name,
+			Type:      ws.Type,
+			Zone:      ws.Zone,
+			IsFree:    ws.IsAvailable,
+			Available: ws.IsAvailable,
+			X:         ws.PositionX,
+			Y:         ws.PositionY,
+		})
+	}
 	render(w, "admin.html", pageData{
 		Title:      "Админ-панель",
 		ActiveTab:  "admin",
@@ -178,7 +210,7 @@ func adminHandler(w http.ResponseWriter, r *http.Request) {
 		IsLoggedIn: true,
 		UserName:   "admin@example.com",
 		Data: map[string]any{
-			"Workspaces":     mockWorkspaces(),
+			"Workspaces":     views,
 			"Bookings":       mockBookings(),
 			"MaxActiveLimit": 3,
 		},

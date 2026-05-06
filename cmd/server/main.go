@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"os"
 
+	"coworking/internal/db"
 	"coworking/internal/handlers"
+	"coworking/internal/repo"
 )
 
 func main() {
@@ -14,8 +16,18 @@ func main() {
 		port = "8080"
 	}
 
+	conn, err := db.Open()
+	if err != nil {
+		log.Fatalf("db connect: %v", err)
+	}
+	defer conn.Close()
+
+	app := &handlers.App{
+		Workspaces: repo.NewWorkspaceRepo(conn),
+	}
+
 	mux := http.NewServeMux()
-	handlers.Register(mux)
+	app.Register(mux)
 
 	log.Printf("server listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
