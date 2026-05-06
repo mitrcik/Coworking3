@@ -3,47 +3,75 @@
 {{define "content"}}
 <section class="card">
   <h2 class="card__title">Схема коворкинга</h2>
-  <form class="form form--inline" method="get" action="/scheme">
-    <label class="field field--inline">
+
+  {{with index .Data "Error"}}{{if .}}<div class="error">{{.}}</div>{{end}}{{end}}
+
+  <form class="form form--row" method="get" action="/scheme">
+    <input type="hidden" name="workspace_id" value="{{with index .Data "Selected"}}{{.ID}}{{end}}">
+    <label class="field">
       <span class="field__label">Дата</span>
-      <input class="field__input" type="date" name="date" value="{{index .Data "Date"}}">
+      <input class="field__input" type="date" name="date" value="{{index .Data "Date"}}" required>
     </label>
-    <label class="field field--inline">
+    <label class="field">
       <span class="field__label">С</span>
-      <input class="field__input" type="time" name="start" value="{{index .Data "Start"}}">
+      <input class="field__input" type="time" name="start" value="{{index .Data "Start"}}" required>
     </label>
-    <label class="field field--inline">
+    <label class="field">
       <span class="field__label">До</span>
-      <input class="field__input" type="time" name="end" value="{{index .Data "End"}}">
+      <input class="field__input" type="time" name="end" value="{{index .Data "End"}}" required>
     </label>
-    <button class="btn btn--secondary btn--small" type="submit">Обновить</button>
+    <button class="btn btn--secondary btn--block" type="submit">Показать занятость</button>
   </form>
 </section>
 
 <section class="card">
-  <h3 class="card__title">Места</h3>
   <div class="legend">
-    <span class="legend__item legend__item--free">Свободно</span>
-    <span class="legend__item legend__item--busy">Занято</span>
-    <span class="legend__item legend__item--off">Недоступно</span>
+    <span class="legend__chip legend__chip--free"></span> Свободно
+    <span class="legend__chip legend__chip--busy"></span> Занято
+    <span class="legend__chip legend__chip--off"></span> Недоступно
   </div>
   <div class="map">
+    {{$selectedID := ""}}{{with index .Data "Selected"}}{{$selectedID = .ID}}{{end}}
     {{range index .Data "Workspaces"}}
-      <div class="map__seat
-        {{if not .Available}}is-off
-        {{else if .IsFree}}is-free
-        {{else}}is-busy{{end}}"
-        style="grid-column: {{.X}}; grid-row: {{.Y}};"
-        title="{{.Name}} ({{.Type}})">
-        <div class="map__seat-name">{{.Name}}</div>
-        <div class="map__seat-type">{{.Type}}</div>
-      </div>
+      {{if or .Disabled .Busy}}
+        <div class="map__seat is-{{.StatusKey}}{{if eq .ID $selectedID}} is-selected{{end}}" title="{{.Name}} — {{.StatusText}}">
+          <div class="map__seat-name">{{.Name}}</div>
+          <div class="map__seat-type">{{.StatusText}}</div>
+        </div>
+      {{else}}
+        <a class="map__seat is-{{.StatusKey}}{{if eq .ID $selectedID}} is-selected{{end}}"
+           title="{{.Name}} — {{.Zone}}"
+           href="/scheme?date={{index $.Data "Date"}}&start={{index $.Data "Start"}}&end={{index $.Data "End"}}&workspace_id={{.ID}}">
+          <div class="map__seat-name">{{.Name}}</div>
+          <div class="map__seat-type">{{.StatusText}}</div>
+        </a>
+      {{end}}
     {{end}}
   </div>
 </section>
 
+{{with index .Data "Selected"}}
 <section class="card">
-  <h3 class="card__title">Выбранное место</h3>
-  <p class="card__text">Этап 1: выбор и бронирование появятся на этапах 4–5.</p>
+  <h3 class="card__title">Выбранное место: {{.Name}}</h3>
+  <ul class="kv">
+    <li><span>Тип</span><b>{{.Type}}</b></li>
+    <li><span>Зона</span><b>{{.Zone}}</b></li>
+    <li><span>Дата</span><b>{{index $.Data "Date"}}</b></li>
+    <li><span>Время</span><b>{{index $.Data "Start"}}–{{index $.Data "End"}}</b></li>
+    <li><span>Статус</span><b>{{.StatusText}}</b></li>
+  </ul>
+
+  {{if index $.Data "CanBook"}}
+  <form method="post" action="/bookings/create">
+    <input type="hidden" name="workspace_id" value="{{.ID}}">
+    <input type="hidden" name="date"  value="{{index $.Data "Date"}}">
+    <input type="hidden" name="start" value="{{index $.Data "Start"}}">
+    <input type="hidden" name="end"   value="{{index $.Data "End"}}">
+    <button class="btn btn--primary btn--block" type="submit">Забронировать</button>
+  </form>
+  {{else}}
+    <button class="btn btn--secondary btn--block" type="button" disabled>Бронирование недоступно</button>
+  {{end}}
 </section>
+{{end}}
 {{end}}

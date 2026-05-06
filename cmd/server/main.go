@@ -26,6 +26,8 @@ func main() {
 	app := &handlers.App{
 		Workspaces: repo.NewWorkspaceRepo(conn),
 		Users:      repo.NewUserRepo(conn),
+		Bookings:   repo.NewBookingRepo(conn),
+		Settings:   repo.NewSettingsRepo(conn),
 		Sessions:   auth.NewManager(os.Getenv("SESSION_SECRET")),
 	}
 

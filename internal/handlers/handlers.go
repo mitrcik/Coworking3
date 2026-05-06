@@ -15,6 +15,8 @@ import (
 type App struct {
 	Workspaces *repo.WorkspaceRepo
 	Users      *repo.UserRepo
+	Bookings   *repo.BookingRepo
+	Settings   *repo.SettingsRepo
 	Sessions   *auth.Manager
 }
 
@@ -107,48 +109,6 @@ func (a *App) homeHandler(w http.ResponseWriter, r *http.Request) {
 	render(w, "home.html", pd)
 }
 
-// schemeWorkspace adapts a DB workspace to the template view model.
-type schemeWorkspace struct {
-	ID        string
-	Name      string
-	Type      models.WorkspaceType
-	Zone      string
-	IsFree    bool
-	Available bool
-	X         int
-	Y         int
-}
-
-func (a *App) schemeHandler(w http.ResponseWriter, r *http.Request) {
-	workspaces, err := a.Workspaces.List(r.Context())
-	if err != nil {
-		log.Printf("list workspaces: %v", err)
-		http.Error(w, "Не удалось загрузить схему", http.StatusInternalServerError)
-		return
-	}
-	views := make([]schemeWorkspace, 0, len(workspaces))
-	for _, ws := range workspaces {
-		views = append(views, schemeWorkspace{
-			ID:        ws.ID,
-			Name:      ws.Name,
-			Type:      ws.Type,
-			Zone:      ws.Zone,
-			IsFree:    ws.IsAvailable,
-			Available: ws.IsAvailable,
-			X:         ws.PositionX,
-			Y:         ws.PositionY,
-		})
-	}
-	pd := pageDataFor(r, "Схема коворкинга", "scheme")
-	pd.Data = map[string]any{
-		"Workspaces": views,
-		"Date":       "2025-12-01",
-		"Start":      "09:00",
-		"End":        "12:00",
-	}
-	render(w, "scheme.html", pd)
-}
-
 type mockBooking struct {
 	ID        int
 	Workspace string
@@ -181,22 +141,9 @@ func (a *App) adminHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Не удалось загрузить данные админки", http.StatusInternalServerError)
 		return
 	}
-	views := make([]schemeWorkspace, 0, len(workspaces))
-	for _, ws := range workspaces {
-		views = append(views, schemeWorkspace{
-			ID:        ws.ID,
-			Name:      ws.Name,
-			Type:      ws.Type,
-			Zone:      ws.Zone,
-			IsFree:    ws.IsAvailable,
-			Available: ws.IsAvailable,
-			X:         ws.PositionX,
-			Y:         ws.PositionY,
-		})
-	}
 	pd := pageDataFor(r, "Админ-панель", "admin")
 	pd.Data = map[string]any{
-		"Workspaces":     views,
+		"Workspaces":     workspaces,
 		"Bookings":       mockBookings(),
 		"MaxActiveLimit": 3,
 	}
