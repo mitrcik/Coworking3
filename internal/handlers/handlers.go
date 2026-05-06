@@ -56,6 +56,7 @@ func (a *App) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/scheme", a.requireUser(a.schemeHandler))
 	mux.HandleFunc("/bookings", a.requireUser(a.bookingsHandler))
 	mux.HandleFunc("/bookings/create", a.requireUser(a.bookingCreateHandler))
+	mux.HandleFunc("/bookings/cancel", a.requireUser(a.bookingCancelHandler))
 	mux.HandleFunc("/admin", a.requireAdmin(a.adminHandler))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -128,6 +129,13 @@ type bookingView struct {
 
 func (a *App) bookingsHandler(w http.ResponseWriter, r *http.Request) {
 	user, _ := auth.UserFrom(r.Context())
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Не удалось обработать форму", http.StatusBadRequest)
+		return
+	}
+
+	statusFilter := r.FormValue("status") // CONFIRMED, COMPLETED, CANCELLED, ALL
+	periodFilter := r.FormValue("period") // all, future, past
 
 	rows, err := a.Bookings.ListByUser(r.Context(), user.ID, nil)
 	if err != nil {
@@ -138,6 +146,31 @@ func (a *App) bookingsHandler(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	views := make([]bookingView, 0, len(rows))
 	for _, b := range rows {
+		// status filter
+		if statusFilter != "" && statusFilter != "ALL" {
+			switch statusFilter {
+			case "CANCELLED":
+				if b.Status != models.StatusCancelledByUser && b.Status != models.StatusCancelledByAdmin {
+					continue
+				}
+			default:
+				if string(b.Status) != statusFilter {
+					continue
+				}
+			}
+		}
+		// period filter
+		switch periodFilter {
+		case "future":
+			if !b.EndTime.After(now) {
+				continue
+			}
+		case "past":
+			if b.EndTime.After(now) {
+				continue
+			}
+		}
+
 		v := bookingView{
 			ID:         b.ID,
 			Workspace:  b.WorkspaceName,
@@ -156,14 +189,25 @@ func (a *App) bookingsHandler(w http.ResponseWriter, r *http.Request) {
 		views = append(views, v)
 	}
 
-	flash := ""
-	if r.URL.Query().Get("flash") == "created" {
+	flash, flashErr := "", ""
+	switch r.URL.Query().Get("flash") {
+	case "created":
 		flash = "Бронирование создано"
+	case "cancelled":
+		flash = "Бронирование отменено, место снова доступно"
+	}
+	if e := r.URL.Query().Get("flash_err"); e != "" {
+		flashErr = e
 	}
 
 	pd := pageDataFor(r, "Мои бронирования", "bookings")
 	pd.Flash = flash
-	pd.Data = map[string]any{"Bookings": views}
+	pd.Data = map[string]any{
+		"Bookings":  views,
+		"Status":    statusFilter,
+		"Period":    periodFilter,
+		"FlashErr":  flashErr,
+	}
 	render(w, "bookings.html", pd)
 }
 
