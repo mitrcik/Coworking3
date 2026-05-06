@@ -18,10 +18,20 @@ type App struct {
 	Users      *repo.UserRepo
 	Bookings   *repo.BookingRepo
 	Settings   *repo.SettingsRepo
+	Reports    *repo.ReportRepo
 	Sessions   *auth.Manager
 }
 
 var pageTemplates = map[string]*template.Template{}
+
+var tplFuncs = template.FuncMap{
+	"percent": func(n, max int) int {
+		if max == 0 {
+			return 0
+		}
+		return n * 100 / max
+	},
+}
 
 func init() {
 	layoutPath := filepath.Join("web", "templates", "layout.html")
@@ -32,10 +42,11 @@ func init() {
 		"scheme.html",
 		"bookings.html",
 		"admin.html",
+		"report.html",
 	}
 	for _, p := range pages {
 		pagePath := filepath.Join("web", "templates", p)
-		t, err := template.ParseFiles(layoutPath, pagePath)
+		t, err := template.New("layout").Funcs(tplFuncs).ParseFiles(layoutPath, pagePath)
 		if err != nil {
 			log.Printf("template parse error for %s: %v", p, err)
 			continue
@@ -65,6 +76,7 @@ func (a *App) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/admin/bookings/cancel", a.requireAdmin(a.adminBookingCancelHandler))
 	mux.HandleFunc("/admin/bookings/status", a.requireAdmin(a.adminBookingStatusHandler))
 	mux.HandleFunc("/admin/settings", a.requireAdmin(a.adminSettingsHandler))
+	mux.HandleFunc("/admin/report", a.requireAdmin(a.reportHandler))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))

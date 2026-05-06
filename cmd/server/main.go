@@ -28,6 +28,7 @@ func main() {
 		Users:      repo.NewUserRepo(conn),
 		Bookings:   repo.NewBookingRepo(conn),
 		Settings:   repo.NewSettingsRepo(conn),
+		Reports:    repo.NewReportRepo(conn),
 		Sessions:   auth.NewManager(os.Getenv("SESSION_SECRET")),
 	}
 

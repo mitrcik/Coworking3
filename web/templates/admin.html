@@ -9,6 +9,7 @@
   <h2 class="card__title">Админ-панель</h2>
   {{with .Flash}}{{if .}}<div class="success">{{.}}</div>{{end}}{{end}}
   {{with index .Data "FlashErr"}}{{if .}}<div class="error">{{.}}</div>{{end}}{{end}}
+  <p><a class="btn btn--secondary btn--block" href="/admin/report">Перейти к отчётам →</a></p>
 </section>
 
 <section class="card">

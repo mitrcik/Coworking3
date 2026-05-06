@@ -233,6 +233,32 @@ a.map__seat       { text-decoration: none; cursor: pointer; }
 details > summary { cursor: pointer; padding: 6px 0; }
 details[open] > summary { margin-bottom: 8px; }
 
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin: 4px 0;
+}
+.table th, .table td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.table th { color: var(--muted); font-weight: 600; }
+
+.bars { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.bar {
+  display: grid;
+  grid-template-columns: 90px 1fr 28px;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+.bar__day { color: var(--muted); }
+.bar__track { background: #f0f0f3; height: 14px; border-radius: 4px; overflow: hidden; }
+.bar__fill  { display: block; height: 100%; background: var(--primary); }
+.bar__count { text-align: right; font-weight: 600; }
+
 .form--row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: end; }
 .form--row .btn { grid-column: 1 / -1; }
 
