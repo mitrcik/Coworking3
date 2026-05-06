@@ -3,27 +3,35 @@
 {{define "content"}}
 <section class="card">
   <h2 class="card__title">Мои бронирования</h2>
-  <div class="filters">
-    <select class="field__input field__input--small">
-      <option>Все статусы</option>
-      <option>Активные</option>
-      <option>Завершённые</option>
-      <option>Отменённые</option>
-    </select>
-  </div>
-  <ul class="list">
-    {{range index .Data "Bookings"}}
+  {{with .Flash}}{{if .}}<div class="success">{{.}}</div>{{end}}{{end}}
+
+  {{$bookings := index .Data "Bookings"}}
+  {{if not $bookings}}
+    <p class="muted">У вас пока нет бронирований. Перейдите на <a href="/scheme">схему коворкинга</a>, чтобы выбрать место.</p>
+  {{else}}
+    <ul class="list">
+    {{range $bookings}}
       <li class="list__item">
-        <div class="list__main">
-          <div class="list__title">{{.Workspace}} <span class="badge badge--type">{{.Type}}</span></div>
-          <div class="list__sub">{{.Date}} · {{.Start}}–{{.End}}</div>
+        <div class="list__item-main">
+          <div class="list__item-title">{{.Workspace}}
+            <span class="badge badge--{{.Status}}">{{.StatusText}}</span>
+          </div>
+          <div class="list__item-sub muted">
+            {{.Type}} · {{.Zone}}
+          </div>
+          <div class="list__item-sub">
+            {{.Date}}, {{.Start}}–{{.End}}
+          </div>
         </div>
-        <div class="list__side">
-          <span class="badge badge--status badge--{{.Status}}">{{.Status}}</span>
-        </div>
+        {{if .CanCancel}}
+          <form method="post" action="/bookings/cancel" onsubmit="return confirm('Отменить бронирование?');">
+            <input type="hidden" name="booking_id" value="{{.ID}}">
+            <button class="btn btn--danger" type="submit">Отменить</button>
+          </form>
+        {{end}}
       </li>
     {{end}}
-  </ul>
-  <div class="hint hint--muted">Этап 1: данные моковые, отмена будет на этапе&nbsp;6.</div>
+    </ul>
+  {{end}}
 </section>
 {{end}}

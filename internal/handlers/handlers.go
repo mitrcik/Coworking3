@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"time"
 
 	"coworking/internal/auth"
 	"coworking/internal/models"
@@ -54,6 +55,7 @@ func (a *App) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/logout", a.logoutHandler)
 	mux.HandleFunc("/scheme", a.requireUser(a.schemeHandler))
 	mux.HandleFunc("/bookings", a.requireUser(a.bookingsHandler))
+	mux.HandleFunc("/bookings/create", a.requireUser(a.bookingCreateHandler))
 	mux.HandleFunc("/admin", a.requireAdmin(a.adminHandler))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -109,29 +111,75 @@ func (a *App) homeHandler(w http.ResponseWriter, r *http.Request) {
 	render(w, "home.html", pd)
 }
 
-type mockBooking struct {
-	ID        int
-	Workspace string
-	Type      string
-	Date      string
-	Start     string
-	End       string
-	Status    string
-}
-
-func mockBookings() []mockBooking {
-	return []mockBooking{
-		{ID: 1, Workspace: "A1", Type: "DESK", Date: "2025-12-01", Start: "09:00", End: "12:00", Status: "CONFIRMED"},
-		{ID: 2, Workspace: "M1", Type: "MEETING_ROOM", Date: "2025-12-02", Start: "14:00", End: "16:00", Status: "CONFIRMED"},
-		{ID: 3, Workspace: "B1", Type: "DESK", Date: "2025-11-15", Start: "10:00", End: "13:00", Status: "COMPLETED"},
-		{ID: 4, Workspace: "L1", Type: "LOUNGE", Date: "2025-11-20", Start: "15:00", End: "17:00", Status: "CANCELLED_BY_USER"},
-	}
+// bookingView is the template-friendly representation of a user's booking.
+type bookingView struct {
+	ID            string
+	Workspace     string
+	Type          models.WorkspaceType
+	Zone          string
+	Date          string
+	Start         string
+	End           string
+	Status        models.BookingStatus
+	StatusText    string
+	IsActiveNow   bool
+	CanCancel     bool
 }
 
 func (a *App) bookingsHandler(w http.ResponseWriter, r *http.Request) {
+	user, _ := auth.UserFrom(r.Context())
+
+	rows, err := a.Bookings.ListByUser(r.Context(), user.ID, nil)
+	if err != nil {
+		log.Printf("bookings: list: %v", err)
+		http.Error(w, "Не удалось загрузить бронирования", http.StatusInternalServerError)
+		return
+	}
+	now := time.Now()
+	views := make([]bookingView, 0, len(rows))
+	for _, b := range rows {
+		v := bookingView{
+			ID:         b.ID,
+			Workspace:  b.WorkspaceName,
+			Type:       b.WorkspaceType,
+			Zone:       b.Zone,
+			Date:       b.StartTime.Local().Format("2006-01-02"),
+			Start:      b.StartTime.Local().Format("15:04"),
+			End:        b.EndTime.Local().Format("15:04"),
+			Status:     b.Status,
+			StatusText: humanStatus(b.Status),
+		}
+		if b.Status == models.StatusConfirmed {
+			v.IsActiveNow = !b.EndTime.Before(now)
+			v.CanCancel = b.StartTime.After(now) // can cancel only future bookings
+		}
+		views = append(views, v)
+	}
+
+	flash := ""
+	if r.URL.Query().Get("flash") == "created" {
+		flash = "Бронирование создано"
+	}
+
 	pd := pageDataFor(r, "Мои бронирования", "bookings")
-	pd.Data = map[string]any{"Bookings": mockBookings()}
+	pd.Flash = flash
+	pd.Data = map[string]any{"Bookings": views}
 	render(w, "bookings.html", pd)
+}
+
+func humanStatus(s models.BookingStatus) string {
+	switch s {
+	case models.StatusConfirmed:
+		return "Активно"
+	case models.StatusCompleted:
+		return "Завершено"
+	case models.StatusCancelledByUser:
+		return "Отменено пользователем"
+	case models.StatusCancelledByAdmin:
+		return "Отменено администратором"
+	default:
+		return string(s)
+	}
 }
 
 func (a *App) adminHandler(w http.ResponseWriter, r *http.Request) {
@@ -141,11 +189,23 @@ func (a *App) adminHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Не удалось загрузить данные админки", http.StatusInternalServerError)
 		return
 	}
+	allBookings, err := a.Bookings.ListAll(r.Context(), nil)
+	if err != nil {
+		log.Printf("admin list bookings: %v", err)
+		http.Error(w, "Не удалось загрузить данные админки", http.StatusInternalServerError)
+		return
+	}
+	settings, err := a.Settings.Get(r.Context())
+	if err != nil {
+		log.Printf("admin get settings: %v", err)
+		http.Error(w, "Не удалось загрузить настройки", http.StatusInternalServerError)
+		return
+	}
 	pd := pageDataFor(r, "Админ-панель", "admin")
 	pd.Data = map[string]any{
 		"Workspaces":     workspaces,
-		"Bookings":       mockBookings(),
-		"MaxActiveLimit": 3,
+		"Bookings":       allBookings,
+		"MaxActiveLimit": settings.MaxActiveBookingsPerUser,
 	}
 	render(w, "admin.html", pd)
 }

@@ -193,6 +193,26 @@ a.map__seat       { text-decoration: none; cursor: pointer; }
 .legend__chip--busy { background: #e64c4c; }
 .legend__chip--off  { background: #b0b3b8; }
 
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  vertical-align: middle;
+  background: #ececec;
+  color: #555;
+}
+.badge--CONFIRMED          { background: #e0f6e7; color: #1f8a44; }
+.badge--COMPLETED          { background: #e0e8f6; color: #2a59c2; }
+.badge--CANCELLED_BY_USER  { background: #fbeaea; color: #b53a3a; }
+.badge--CANCELLED_BY_ADMIN { background: #fbeaea; color: #b53a3a; }
+
+.btn--danger {
+  background: var(--danger);
+  color: #fff;
+}
+
 .form--row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: end; }
 .form--row .btn { grid-column: 1 / -1; }
 

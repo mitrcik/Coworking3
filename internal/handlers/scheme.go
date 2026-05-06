@@ -72,6 +72,10 @@ func parseSchemeForm(r *http.Request) (start, end time.Time, dateStr, startStr, 
 	if !end.After(start) && errMsg == "" {
 		errMsg = "Время окончания должно быть позже времени начала"
 	}
+	// allow other handlers to redirect with ?error=
+	if errMsg == "" {
+		errMsg = r.FormValue("error")
+	}
 	return
 }
 
