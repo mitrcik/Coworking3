@@ -3,10 +3,11 @@
 {{define "content"}}
 <section class="card">
   <h2 class="card__title">Вход</h2>
+  {{with index .Data "Error"}}{{if .}}<div class="error">{{.}}</div>{{end}}{{end}}
   <form class="form" method="post" action="/login">
     <label class="field">
       <span class="field__label">Email</span>
-      <input class="field__input" type="email" name="email" placeholder="you@example.com" required>
+      <input class="field__input" type="email" name="email" placeholder="you@example.com" value="{{with index .Data "Email"}}{{.}}{{end}}" required autofocus>
     </label>
     <label class="field">
       <span class="field__label">Пароль</span>
@@ -15,6 +16,6 @@
     <button class="btn btn--primary btn--block" type="submit">Войти</button>
   </form>
   <div class="hint">Нет аккаунта? <a href="/register">Зарегистрироваться</a></div>
-  <div class="hint hint--muted">Этап 1: форма пока без серверной обработки.</div>
+  <div class="hint hint--muted">Админ: <b>admin@example.com</b> / <b>admin</b></div>
 </section>
 {{end}}

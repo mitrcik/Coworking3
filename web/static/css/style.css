@@ -233,6 +233,23 @@ body {
 
 .filters { margin-bottom: 12px; display: flex; gap: 8px; }
 
+.error {
+  background: #fdecec;
+  color: #b53a3a;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.success {
+  background: #e6f6ec;
+  color: #1f8a44;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
 @media (min-width: 481px) {
   body { box-shadow: 0 0 0 1px var(--border); }
 }

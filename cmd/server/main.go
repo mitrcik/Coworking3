@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"coworking/internal/auth"
 	"coworking/internal/db"
 	"coworking/internal/handlers"
 	"coworking/internal/repo"
@@ -24,6 +25,8 @@ func main() {
 
 	app := &handlers.App{
 		Workspaces: repo.NewWorkspaceRepo(conn),
+		Users:      repo.NewUserRepo(conn),
+		Sessions:   auth.NewManager(os.Getenv("SESSION_SECRET")),
 	}
 
 	mux := http.NewServeMux()

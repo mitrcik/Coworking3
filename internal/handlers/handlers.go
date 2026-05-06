@@ -6,13 +6,16 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"coworking/internal/auth"
 	"coworking/internal/models"
 	"coworking/internal/repo"
 )
 
-// App carries shared dependencies (database repositories, config) for handlers.
+// App carries shared dependencies (database repositories, sessions) for handlers.
 type App struct {
 	Workspaces *repo.WorkspaceRepo
+	Users      *repo.UserRepo
+	Sessions   *auth.Manager
 }
 
 var pageTemplates = map[string]*template.Template{}
@@ -43,12 +46,13 @@ func (a *App) Register(mux *http.ServeMux) {
 	staticDir := http.Dir(filepath.Join("web", "static"))
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(staticDir)))
 
-	mux.HandleFunc("/", a.homeHandler)
+	mux.HandleFunc("/", a.withUser(a.homeHandler))
 	mux.HandleFunc("/login", a.loginHandler)
 	mux.HandleFunc("/register", a.registerHandler)
-	mux.HandleFunc("/scheme", a.schemeHandler)
-	mux.HandleFunc("/bookings", a.bookingsHandler)
-	mux.HandleFunc("/admin", a.adminHandler)
+	mux.HandleFunc("/logout", a.logoutHandler)
+	mux.HandleFunc("/scheme", a.requireUser(a.schemeHandler))
+	mux.HandleFunc("/bookings", a.requireUser(a.bookingsHandler))
+	mux.HandleFunc("/admin", a.requireAdmin(a.adminHandler))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
@@ -78,34 +82,29 @@ func render(w http.ResponseWriter, name string, data pageData) {
 	}
 }
 
+// pageDataFor builds a pageData with auth fields populated from the request.
+func pageDataFor(r *http.Request, title, tab string) pageData {
+	pd := pageData{Title: title, ActiveTab: tab}
+	if u, ok := auth.UserFrom(r.Context()); ok {
+		pd.IsLoggedIn = true
+		pd.UserName = u.FullName
+		pd.IsAdmin = u.Role == models.RoleAdmin
+	}
+	return pd
+}
+
 func (a *App) homeHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
 		return
 	}
-	render(w, "home.html", pageData{
-		Title:      "Главная",
-		ActiveTab:  "home",
-		IsLoggedIn: false,
-		UserName:   "Гость",
-		Data: map[string]any{
-			"Greeting": "Добро пожаловать в коворкинг!",
-		},
-	})
-}
-
-func (a *App) loginHandler(w http.ResponseWriter, r *http.Request) {
-	render(w, "login.html", pageData{
-		Title:     "Вход",
-		ActiveTab: "auth",
-	})
-}
-
-func (a *App) registerHandler(w http.ResponseWriter, r *http.Request) {
-	render(w, "register.html", pageData{
-		Title:     "Регистрация",
-		ActiveTab: "auth",
-	})
+	pd := pageDataFor(r, "Главная", "home")
+	greeting := "Добро пожаловать в коворкинг!"
+	if u, ok := auth.UserFrom(r.Context()); ok {
+		greeting = "Здравствуйте, " + u.FullName + "!"
+	}
+	pd.Data = map[string]any{"Greeting": greeting}
+	render(w, "home.html", pd)
 }
 
 // schemeWorkspace adapts a DB workspace to the template view model.
@@ -140,16 +139,14 @@ func (a *App) schemeHandler(w http.ResponseWriter, r *http.Request) {
 			Y:         ws.PositionY,
 		})
 	}
-	render(w, "scheme.html", pageData{
-		Title:     "Схема коворкинга",
-		ActiveTab: "scheme",
-		Data: map[string]any{
-			"Workspaces": views,
-			"Date":       "2025-12-01",
-			"Start":      "09:00",
-			"End":        "12:00",
-		},
-	})
+	pd := pageDataFor(r, "Схема коворкинга", "scheme")
+	pd.Data = map[string]any{
+		"Workspaces": views,
+		"Date":       "2025-12-01",
+		"Start":      "09:00",
+		"End":        "12:00",
+	}
+	render(w, "scheme.html", pd)
 }
 
 type mockBooking struct {
@@ -172,15 +169,9 @@ func mockBookings() []mockBooking {
 }
 
 func (a *App) bookingsHandler(w http.ResponseWriter, r *http.Request) {
-	render(w, "bookings.html", pageData{
-		Title:      "Мои бронирования",
-		ActiveTab:  "bookings",
-		IsLoggedIn: true,
-		UserName:   "Пользователь",
-		Data: map[string]any{
-			"Bookings": mockBookings(),
-		},
-	})
+	pd := pageDataFor(r, "Мои бронирования", "bookings")
+	pd.Data = map[string]any{"Bookings": mockBookings()}
+	render(w, "bookings.html", pd)
 }
 
 func (a *App) adminHandler(w http.ResponseWriter, r *http.Request) {
@@ -203,16 +194,11 @@ func (a *App) adminHandler(w http.ResponseWriter, r *http.Request) {
 			Y:         ws.PositionY,
 		})
 	}
-	render(w, "admin.html", pageData{
-		Title:      "Админ-панель",
-		ActiveTab:  "admin",
-		IsAdmin:    true,
-		IsLoggedIn: true,
-		UserName:   "admin@example.com",
-		Data: map[string]any{
-			"Workspaces":     views,
-			"Bookings":       mockBookings(),
-			"MaxActiveLimit": 3,
-		},
-	})
+	pd := pageDataFor(r, "Админ-панель", "admin")
+	pd.Data = map[string]any{
+		"Workspaces":     views,
+		"Bookings":       mockBookings(),
+		"MaxActiveLimit": 3,
+	}
+	render(w, "admin.html", pd)
 }
