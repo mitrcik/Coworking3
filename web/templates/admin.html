@@ -1,0 +1,56 @@
+{{define "admin.html"}}{{template "layout" .}}{{end}}
+
+{{define "content"}}
+<section class="card">
+  <h2 class="card__title">Админ-панель</h2>
+  <p class="card__text">Управление местами, бронированиями и системными настройками.</p>
+  <div class="actions">
+    <a class="btn btn--secondary btn--small" href="#workspaces">Места</a>
+    <a class="btn btn--secondary btn--small" href="#bookings">Бронирования</a>
+    <a class="btn btn--secondary btn--small" href="#settings">Настройки</a>
+  </div>
+</section>
+
+<section class="card" id="workspaces">
+  <h3 class="card__title">Места</h3>
+  <ul class="list">
+    {{range index .Data "Workspaces"}}
+      <li class="list__item">
+        <div class="list__main">
+          <div class="list__title">{{.Name}} <span class="badge badge--type">{{.Type}}</span></div>
+          <div class="list__sub">Зона: {{.Zone}} · ({{.X}}, {{.Y}})</div>
+        </div>
+        <div class="list__side">
+          {{if .Available}}<span class="badge badge--ok">Доступно</span>{{else}}<span class="badge badge--off">Откл.</span>{{end}}
+        </div>
+      </li>
+    {{end}}
+  </ul>
+</section>
+
+<section class="card" id="bookings">
+  <h3 class="card__title">Все бронирования</h3>
+  <ul class="list">
+    {{range index .Data "Bookings"}}
+      <li class="list__item">
+        <div class="list__main">
+          <div class="list__title">{{.Workspace}} <span class="badge badge--type">{{.Type}}</span></div>
+          <div class="list__sub">{{.Date}} · {{.Start}}–{{.End}}</div>
+        </div>
+        <div class="list__side">
+          <span class="badge badge--status badge--{{.Status}}">{{.Status}}</span>
+        </div>
+      </li>
+    {{end}}
+  </ul>
+</section>
+
+<section class="card" id="settings">
+  <h3 class="card__title">Настройки</h3>
+  <div class="field">
+    <span class="field__label">Лимит активных бронирований на пользователя</span>
+    <input class="field__input" type="number" min="1" value="{{index .Data "MaxActiveLimit"}}" disabled>
+  </div>
+  <div class="hint hint--muted">Этап 1: настройка появится на этапе&nbsp;7.</div>
+</section>
+{{end}}

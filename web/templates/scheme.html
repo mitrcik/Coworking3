@@ -1,0 +1,49 @@
+{{define "scheme.html"}}{{template "layout" .}}{{end}}
+
+{{define "content"}}
+<section class="card">
+  <h2 class="card__title">Схема коворкинга</h2>
+  <form class="form form--inline" method="get" action="/scheme">
+    <label class="field field--inline">
+      <span class="field__label">Дата</span>
+      <input class="field__input" type="date" name="date" value="{{index .Data "Date"}}">
+    </label>
+    <label class="field field--inline">
+      <span class="field__label">С</span>
+      <input class="field__input" type="time" name="start" value="{{index .Data "Start"}}">
+    </label>
+    <label class="field field--inline">
+      <span class="field__label">До</span>
+      <input class="field__input" type="time" name="end" value="{{index .Data "End"}}">
+    </label>
+    <button class="btn btn--secondary btn--small" type="submit">Обновить</button>
+  </form>
+</section>
+
+<section class="card">
+  <h3 class="card__title">Места</h3>
+  <div class="legend">
+    <span class="legend__item legend__item--free">Свободно</span>
+    <span class="legend__item legend__item--busy">Занято</span>
+    <span class="legend__item legend__item--off">Недоступно</span>
+  </div>
+  <div class="map">
+    {{range index .Data "Workspaces"}}
+      <div class="map__seat
+        {{if not .Available}}is-off
+        {{else if .IsFree}}is-free
+        {{else}}is-busy{{end}}"
+        style="grid-column: {{.X}}; grid-row: {{.Y}};"
+        title="{{.Name}} ({{.Type}})">
+        <div class="map__seat-name">{{.Name}}</div>
+        <div class="map__seat-type">{{.Type}}</div>
+      </div>
+    {{end}}
+  </div>
+</section>
+
+<section class="card">
+  <h3 class="card__title">Выбранное место</h3>
+  <p class="card__text">Этап 1: выбор и бронирование появятся на этапах 4–5.</p>
+</section>
+{{end}}

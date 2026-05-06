@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: coworking_db
+    environment:
+      POSTGRES_USER: coworking
+      POSTGRES_PASSWORD: coworking
+      POSTGRES_DB: coworking
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coworking -d coworking"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    container_name: coworking_app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_PORT: "8080"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: coworking
+      DB_PASSWORD: coworking
+      DB_NAME: coworking
+      SESSION_SECRET: change-me-in-production
+    ports:
+      - "8080:8080"
+
+volumes:
+  db_data:

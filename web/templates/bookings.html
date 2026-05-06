@@ -1,0 +1,29 @@
+{{define "bookings.html"}}{{template "layout" .}}{{end}}
+
+{{define "content"}}
+<section class="card">
+  <h2 class="card__title">Мои бронирования</h2>
+  <div class="filters">
+    <select class="field__input field__input--small">
+      <option>Все статусы</option>
+      <option>Активные</option>
+      <option>Завершённые</option>
+      <option>Отменённые</option>
+    </select>
+  </div>
+  <ul class="list">
+    {{range index .Data "Bookings"}}
+      <li class="list__item">
+        <div class="list__main">
+          <div class="list__title">{{.Workspace}} <span class="badge badge--type">{{.Type}}</span></div>
+          <div class="list__sub">{{.Date}} · {{.Start}}–{{.End}}</div>
+        </div>
+        <div class="list__side">
+          <span class="badge badge--status badge--{{.Status}}">{{.Status}}</span>
+        </div>
+      </li>
+    {{end}}
+  </ul>
+  <div class="hint hint--muted">Этап 1: данные моковые, отмена будет на этапе&nbsp;6.</div>
+</section>
+{{end}}
