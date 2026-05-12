@@ -1,0 +1,45 @@
+{{define "home.html"}}{{template "layout" .}}{{end}}
+
+{{define "content"}}
+<section class="card">
+  <h2 class="card__title">{{index .Data "Greeting"}}</h2>
+  <p class="card__text">Это учебный прототип системы бронирования мест в вузовском коворкинге.</p>
+  <div class="actions">
+    <a class="btn btn--primary" href="/scheme">Открыть схему</a>
+    <a class="btn btn--secondary" href="/bookings">Мои брони</a>
+  </div>
+</section>
+
+<section class="card">
+  <h3 class="card__title">Быстрые действия</h3>
+  <div class="grid">
+    <a class="tile" href="/scheme">
+      <div class="tile__icon">🗺️</div>
+      <div class="tile__label">Схема</div>
+    </a>
+    <a class="tile" href="/bookings">
+      <div class="tile__icon">📋</div>
+      <div class="tile__label">Мои брони</div>
+    </a>
+    {{if .IsLoggedIn}}
+      <a class="tile" href="/settings">
+        <div class="tile__icon">⚙️</div>
+        <div class="tile__label">Настройки</div>
+      </a>
+      <a class="tile" href="/logout">
+        <div class="tile__icon">🚪</div>
+        <div class="tile__label">Выйти</div>
+      </a>
+    {{else}}
+      <a class="tile" href="/login">
+        <div class="tile__icon">🔐</div>
+        <div class="tile__label">Войти</div>
+      </a>
+      <a class="tile" href="/register">
+        <div class="tile__icon">📝</div>
+        <div class="tile__label">Регистрация</div>
+      </a>
+    {{end}}
+  </div>
+</section>
+{{end}}

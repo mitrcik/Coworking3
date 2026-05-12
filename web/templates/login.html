@@ -1,0 +1,20 @@
+{{define "login.html"}}{{template "layout" .}}{{end}}
+
+{{define "content"}}
+<section class="card">
+  <h2 class="card__title">Вход</h2>
+  {{with index .Data "Error"}}{{if .}}<div class="error">{{.}}</div>{{end}}{{end}}
+  <form class="form" method="post" action="/login">
+    <label class="field">
+      <span class="field__label">Email</span>
+      <input class="field__input" type="text" name="email" placeholder="you@example.com" value="{{with index .Data "Email"}}{{.}}{{end}}" required autofocus>
+    </label>
+    <label class="field">
+      <span class="field__label">Пароль</span>
+      <input class="field__input" type="password" name="password" placeholder="••••••" required>
+    </label>
+    <button class="btn btn--primary btn--block" type="submit">Войти</button>
+  </form>
+  <div class="hint">Нет аккаунта? <a href="/register">Зарегистрироваться</a></div>
+</section>
+{{end}}

@@ -1,0 +1,57 @@
+{{define "bookings.html"}}{{template "layout" .}}{{end}}
+
+{{define "content"}}
+<section class="card">
+  <h2 class="card__title">Мои бронирования</h2>
+  {{with .Flash}}{{if .}}<div class="success">{{.}}</div>{{end}}{{end}}
+  {{with index .Data "FlashErr"}}{{if .}}<div class="error">{{.}}</div>{{end}}{{end}}
+
+  <form class="form form--row" method="get" action="/bookings">
+    <label class="field">
+      <span class="field__label">Статус</span>
+      <select class="field__input" name="status">
+        {{$s := index .Data "Status"}}
+        <option value=""          {{if eq $s ""}}selected{{end}}>Все</option>
+        <option value="CONFIRMED" {{if eq $s "CONFIRMED"}}selected{{end}}>Активные</option>
+        <option value="COMPLETED" {{if eq $s "COMPLETED"}}selected{{end}}>Завершённые</option>
+        <option value="CANCELLED" {{if eq $s "CANCELLED"}}selected{{end}}>Отменённые</option>
+      </select>
+    </label>
+    <label class="field">
+      <span class="field__label">Период</span>
+      <select class="field__input" name="period">
+        {{$p := index .Data "Period"}}
+        <option value=""       {{if eq $p ""}}selected{{end}}>Все</option>
+        <option value="future" {{if eq $p "future"}}selected{{end}}>Будущие</option>
+        <option value="past"   {{if eq $p "past"}}selected{{end}}>Прошлые</option>
+      </select>
+    </label>
+    <button class="btn btn--secondary btn--block" type="submit">Применить</button>
+  </form>
+
+  {{$bookings := index .Data "Bookings"}}
+  {{if not $bookings}}
+    <p class="muted">Нет бронирований по выбранным фильтрам. <a href="/scheme">Перейти к схеме</a>.</p>
+  {{else}}
+    <ul class="list">
+    {{range $bookings}}
+      <li class="list__item">
+        <div class="list__item-main">
+          <div class="list__item-title">{{.Workspace}}
+            <span class="badge badge--{{.Status}}">{{.StatusText}}</span>
+          </div>
+          <div class="list__item-sub muted">{{.Type}} · {{.Zone}}</div>
+          <div class="list__item-sub">{{.Date}}, {{.Start}}–{{.End}}</div>
+        </div>
+        {{if .CanCancel}}
+          <form method="post" action="/bookings/cancel" onsubmit="return confirm('Отменить бронирование?');">
+            <input type="hidden" name="booking_id" value="{{.ID}}">
+            <button class="btn btn--danger" type="submit">Отменить</button>
+          </form>
+        {{end}}
+      </li>
+    {{end}}
+    </ul>
+  {{end}}
+</section>
+{{end}}

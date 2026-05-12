@@ -1,0 +1,89 @@
+{{define "report.html"}}{{template "layout" .}}{{end}}
+
+{{define "content"}}
+<section class="card">
+  <h2 class="card__title">Отчёт</h2>
+  <p class="muted"><a href="/admin">← к админ-панели</a></p>
+  {{with .Flash}}{{if .}}<div class="success">{{.}}</div>{{end}}{{end}}
+  {{with index .Data "Error"}}{{if .}}<div class="error">{{.}}</div>{{end}}{{end}}
+
+  <form class="form form--row" method="get" action="/admin/report">
+    <label class="field"><span class="field__label">С</span>
+      <input class="field__input" type="date" name="from" value="{{index .Data "FromStr"}}" required></label>
+    <label class="field"><span class="field__label">По</span>
+      <input class="field__input" type="date" name="to" value="{{index .Data "ToStr"}}" required></label>
+    <button class="btn btn--secondary btn--block" type="submit">Построить</button>
+  </form>
+</section>
+
+{{$stats := index .Data "Stats"}}
+{{if $stats}}
+<section class="card">
+  <h3 class="card__title">Сводка</h3>
+  {{if eq $stats.Total 0}}
+    <p class="muted">За выбранный период бронирований нет.</p>
+  {{else}}
+    <table class="table">
+      <tr><td>Всего бронирований</td><td><b>{{$stats.Total}}</b></td></tr>
+      <tr><td>Подтверждённых</td><td>{{$stats.Confirmed}}</td></tr>
+      <tr><td>Завершённых</td><td>{{$stats.Completed}}</td></tr>
+      <tr><td>Отменённых пользователем</td><td>{{$stats.CancelledByUser}}</td></tr>
+      <tr><td>Отменённых администратором</td><td>{{$stats.CancelledByAdmin}}</td></tr>
+    </table>
+
+    <form method="get" action="/admin/report" class="inline-form">
+      <input type="hidden" name="from" value="{{index $.Data "FromStr"}}">
+      <input type="hidden" name="to"   value="{{index $.Data "ToStr"}}">
+      <input type="hidden" name="save" value="1">
+      <button class="btn btn--primary btn--block" type="submit">Сохранить отчёт</button>
+    </form>
+  {{end}}
+</section>
+
+{{if $stats.PopularPlaces}}
+<section class="card">
+  <h3 class="card__title">Популярные места</h3>
+  <table class="table">
+    <thead><tr><th>Место</th><th>Тип</th><th>Бронирований</th></tr></thead>
+    <tbody>
+    {{range $stats.PopularPlaces}}
+      <tr><td>{{.Name}}</td><td>{{.Type}}</td><td>{{.Count}}</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}
+
+{{if $stats.DailyLoad}}
+<section class="card">
+  <h3 class="card__title">Загрузка по дням</h3>
+  {{$max := index $.Data "MaxDaily"}}
+  <ul class="bars">
+    {{range $stats.DailyLoad}}
+      <li class="bar">
+        <span class="bar__day">{{.Day}}</span>
+        <span class="bar__track">
+          <span class="bar__fill" style="width: {{if $max}}{{percent .Count $max}}{{else}}0{{end}}%;"></span>
+        </span>
+        <span class="bar__count">{{.Count}}</span>
+      </li>
+    {{end}}
+  </ul>
+</section>
+{{end}}
+
+{{if $stats.UserActivity}}
+<section class="card">
+  <h3 class="card__title">Активность пользователей</h3>
+  <table class="table">
+    <thead><tr><th>Пользователь</th><th>Email</th><th>Бронирований</th></tr></thead>
+    <tbody>
+    {{range $stats.UserActivity}}
+      <tr><td>{{.Name}}</td><td>{{.Email}}</td><td>{{.Count}}</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}
+{{end}}
+{{end}}

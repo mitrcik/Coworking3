@@ -1,0 +1,49 @@
+{{define "layout"}}<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3390ec">
+<title>{{.Title}} — Коворкинг</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<header class="app-header">
+  <div class="app-header__title">{{.Title}}</div>
+  <div class="app-header__user">
+    {{if .IsLoggedIn}}<a class="btn btn--ghost btn--small" href="/logout">Выйти</a>{{else}}<a class="btn btn--ghost btn--small" href="/login">Войти</a>{{end}}
+  </div>
+</header>
+
+{{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
+
+<main class="app-main">
+  {{template "content" .}}
+</main>
+
+<nav class="bottom-nav">
+  <a class="bottom-nav__item {{if eq .ActiveTab "home"}}is-active{{end}}" href="/">
+    <span class="bottom-nav__icon">🏠</span><span class="bottom-nav__label">Главная</span>
+  </a>
+  <a class="bottom-nav__item {{if eq .ActiveTab "scheme"}}is-active{{end}}" href="/scheme">
+    <span class="bottom-nav__icon">🗺️</span><span class="bottom-nav__label">Схема</span>
+  </a>
+  <a class="bottom-nav__item {{if eq .ActiveTab "bookings"}}is-active{{end}}" href="/bookings">
+    <span class="bottom-nav__icon">📋</span><span class="bottom-nav__label">Брони</span>
+  </a>
+  {{if .IsAdmin}}
+  <a class="bottom-nav__item {{if eq .ActiveTab "admin"}}is-active{{end}}" href="/admin">
+    <span class="bottom-nav__icon">⚙️</span><span class="bottom-nav__label">Админ</span>
+  </a>
+  {{else if .IsLoggedIn}}
+  <a class="bottom-nav__item {{if eq .ActiveTab "settings"}}is-active{{end}}" href="/settings">
+    <span class="bottom-nav__icon">👤</span><span class="bottom-nav__label">Аккаунт</span>
+  </a>
+  {{else}}
+  <a class="bottom-nav__item {{if eq .ActiveTab "auth"}}is-active{{end}}" href="/login">
+    <span class="bottom-nav__icon">👤</span><span class="bottom-nav__label">Вход</span>
+  </a>
+  {{end}}
+</nav>
+</body>
+</html>{{end}}

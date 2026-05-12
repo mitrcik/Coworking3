@@ -1,0 +1,28 @@
+{{define "register.html"}}{{template "layout" .}}{{end}}
+
+{{define "content"}}
+<section class="card">
+  <h2 class="card__title">Регистрация</h2>
+  {{with index .Data "Error"}}{{if .}}<div class="error">{{.}}</div>{{end}}{{end}}
+  <form class="form" method="post" action="/register">
+    <label class="field">
+      <span class="field__label">ФИО</span>
+      <input class="field__input" type="text" name="full_name" placeholder="Иванов Иван Иванович" value="{{with index .Data "FullName"}}{{.}}{{end}}" required autofocus>
+    </label>
+    <label class="field">
+      <span class="field__label">Email</span>
+      <input class="field__input" type="text" name="email" placeholder="you@example.com" value="{{with index .Data "Email"}}{{.}}{{end}}" required>
+    </label>
+    <label class="field">
+      <span class="field__label">Пароль</span>
+      <input class="field__input" type="password" name="password" required>
+    </label>
+    <label class="field">
+      <span class="field__label">Повторите пароль</span>
+      <input class="field__input" type="password" name="password_confirm" required>
+    </label>
+    <button class="btn btn--primary btn--block" type="submit">Создать аккаунт</button>
+  </form>
+  <div class="hint">Уже есть аккаунт? <a href="/login">Войти</a></div>
+</section>
+{{end}}

@@ -1,0 +1,157 @@
+{{define "admin.html"}}{{template "layout" .}}{{end}}
+
+{{define "content"}}
+{{$types := index .Data "WorkspaceTypes"}}
+{{$statuses := index .Data "Statuses"}}
+{{$workspaces := index .Data "Workspaces"}}
+
+<section class="card">
+  <h2 class="card__title">Админ-панель</h2>
+  {{with .Flash}}{{if .}}<div class="success">{{.}}</div>{{end}}{{end}}
+  {{with index .Data "FlashErr"}}{{if .}}<div class="error">{{.}}</div>{{end}}{{end}}
+  <p><a class="btn btn--secondary btn--block" href="/admin/report">Перейти к отчётам →</a></p>
+</section>
+
+<section class="card">
+  <h3 class="card__title">Места</h3>
+
+  <details class="form-block">
+    <summary class="btn btn--secondary btn--block">+ Добавить место</summary>
+    <form class="form" method="post" action="/admin/workspaces/create">
+      <label class="field"><span class="field__label">Название</span>
+        <input class="field__input" type="text" name="name" required></label>
+      <label class="field"><span class="field__label">Тип</span>
+        <select class="field__input" name="type">
+          {{range $types}}<option value="{{.}}">{{.}}</option>{{end}}
+        </select></label>
+      <label class="field"><span class="field__label">Зона</span>
+        <input class="field__input" type="text" name="zone" required></label>
+      <label class="field"><span class="field__label">position_x</span>
+        <input class="field__input" type="number" name="position_x" value="0" required></label>
+      <label class="field"><span class="field__label">position_y</span>
+        <input class="field__input" type="number" name="position_y" value="0" required></label>
+      <label class="checkbox"><input type="checkbox" name="is_available" checked> Доступно</label>
+      <button class="btn btn--primary btn--block" type="submit">Создать</button>
+    </form>
+  </details>
+
+  <ul class="list">
+    {{range $workspaces}}
+    <li class="list__item">
+      <details class="full-width">
+        <summary>
+          <b>{{.Name}}</b>
+          <span class="muted"> · {{.Type}} · {{.Zone}} · ({{.PositionX}};{{.PositionY}})</span>
+          {{if .IsAvailable}}<span class="badge badge--CONFIRMED">доступно</span>
+          {{else}}<span class="badge badge--CANCELLED_BY_USER">отключено</span>{{end}}
+        </summary>
+        <form class="form" method="post" action="/admin/workspaces/update">
+          <input type="hidden" name="workspace_id" value="{{.ID}}">
+          <label class="field"><span class="field__label">Название</span>
+            <input class="field__input" type="text" name="name" value="{{.Name}}" required></label>
+          <label class="field"><span class="field__label">Тип</span>
+            <select class="field__input" name="type">
+              {{$current := .Type}}
+              {{range $types}}<option value="{{.}}" {{if eq . (printf "%s" $current)}}selected{{end}}>{{.}}</option>{{end}}
+            </select></label>
+          <label class="field"><span class="field__label">Зона</span>
+            <input class="field__input" type="text" name="zone" value="{{.Zone}}" required></label>
+          <label class="field"><span class="field__label">position_x</span>
+            <input class="field__input" type="number" name="position_x" value="{{.PositionX}}" required></label>
+          <label class="field"><span class="field__label">position_y</span>
+            <input class="field__input" type="number" name="position_y" value="{{.PositionY}}" required></label>
+          <label class="checkbox"><input type="checkbox" name="is_available" {{if .IsAvailable}}checked{{end}}> Доступно</label>
+          <button class="btn btn--primary btn--block" type="submit">Сохранить</button>
+        </form>
+        <form method="post" action="/admin/workspaces/toggle" class="inline-form">
+          <input type="hidden" name="workspace_id" value="{{.ID}}">
+          <input type="hidden" name="available" value="{{if .IsAvailable}}0{{else}}1{{end}}">
+          <button class="btn btn--secondary btn--block" type="submit">{{if .IsAvailable}}Отключить{{else}}Включить{{end}}</button>
+        </form>
+        <form method="post" action="/admin/workspaces/delete" class="inline-form" onsubmit="return confirm('Удалить место?');">
+          <input type="hidden" name="workspace_id" value="{{.ID}}">
+          <button class="btn btn--danger btn--block" type="submit">Удалить</button>
+        </form>
+      </details>
+    </li>
+    {{end}}
+  </ul>
+</section>
+
+<section class="card">
+  <h3 class="card__title">Бронирования</h3>
+
+  <form class="form" method="get" action="/admin">
+    <div class="form--row">
+      <label class="field"><span class="field__label">С даты</span>
+        <input class="field__input" type="date" name="b_from" value="{{index .Data "FromStr"}}"></label>
+      <label class="field"><span class="field__label">По дату</span>
+        <input class="field__input" type="date" name="b_to" value="{{index .Data "ToStr"}}"></label>
+      <label class="field"><span class="field__label">Email</span>
+        <input class="field__input" type="text" name="b_email" placeholder="user@..." value="{{(index .Data "BookingFilter").UserEmail}}"></label>
+    </div>
+    <div class="form--row">
+      <label class="field"><span class="field__label">Статус</span>
+        <select class="field__input" name="b_status">
+          <option value="">Все</option>
+          {{$cur := (index .Data "BookingFilter").Status}}
+          {{range $statuses}}<option value="{{.}}" {{if eq . $cur}}selected{{end}}>{{.}}</option>{{end}}
+        </select></label>
+      <label class="field"><span class="field__label">Место</span>
+        <select class="field__input" name="b_workspace">
+          <option value="">Все</option>
+          {{$wsCur := (index .Data "BookingFilter").WorkspaceID}}
+          {{range $workspaces}}<option value="{{.ID}}" {{if eq .ID $wsCur}}selected{{end}}>{{.Name}}</option>{{end}}
+        </select></label>
+      <button class="btn btn--secondary btn--block" type="submit">Фильтр</button>
+    </div>
+  </form>
+
+  {{$bookings := index .Data "Bookings"}}
+  {{if not $bookings}}
+    <p class="muted">Ничего не найдено.</p>
+  {{else}}
+  <ul class="list">
+    {{range $bookings}}
+    <li class="list__item">
+      <div class="list__item-main">
+        <div class="list__item-title">{{.WorkspaceName}}
+          <span class="badge badge--{{.Status}}">{{.StatusText}}</span>
+        </div>
+        <div class="list__item-sub">
+          <b>{{.UserEmail}}</b> {{if .UserFullName}}({{.UserFullName}}){{end}}
+        </div>
+        <div class="list__item-sub muted">
+          {{.WorkspaceType}} · {{.Zone}} · {{.DateStr}}, {{.StartStr}}–{{.EndStr}}
+        </div>
+        <div class="admin-actions">
+          {{if .CanCancel}}
+            <form method="post" action="/admin/bookings/cancel" class="inline-form" onsubmit="return confirm('Отменить?');">
+              <input type="hidden" name="booking_id" value="{{.ID}}">
+              <button class="btn btn--danger" type="submit">Отменить</button>
+            </form>
+            <form method="post" action="/admin/bookings/status" class="inline-form">
+              <input type="hidden" name="booking_id" value="{{.ID}}">
+              <input type="hidden" name="status" value="COMPLETED">
+              <button class="btn btn--secondary" type="submit">Завершить</button>
+            </form>
+          {{end}}
+        </div>
+      </div>
+    </li>
+    {{end}}
+  </ul>
+  {{end}}
+</section>
+
+<section class="card">
+  <h3 class="card__title">Настройки</h3>
+  <form class="form" method="post" action="/admin/settings">
+    <label class="field"><span class="field__label">Лимит активных бронирований на пользователя</span>
+      <input class="field__input" type="number" name="max_active" min="1" step="1" value="{{index .Data "MaxActiveLimit"}}" required></label>
+    <label class="field"><span class="field__label">minLeadHours (часов до отмены без штрафа)</span>
+      <input class="field__input" type="number" name="lead_hours" min="0" step="1" value="0" required></label>
+    <button class="btn btn--primary btn--block" type="submit">Сохранить</button>
+  </form>
+</section>
+{{end}}
