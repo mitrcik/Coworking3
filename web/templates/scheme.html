@@ -70,29 +70,28 @@
 </section>
 
 <section class="card" id="scheme-selected-card" {{with index .Data "Selected"}}{{else}}hidden{{end}}>
-  {{with index .Data "Selected"}}
-  <h3 class="card__title">Выбранное место: <span id="scheme-selected-name">{{.Name}}</span></h3>
+  {{$sel := index .Data "Selected"}}
+  <h3 class="card__title">Выбранное место: <span id="scheme-selected-name">{{with $sel}}{{.Name}}{{end}}</span></h3>
   <ul class="kv">
-    <li><span>Тип</span><b id="scheme-selected-type">{{.Type}}</b></li>
-    <li><span>Зона</span><b id="scheme-selected-zone">{{.Zone}}</b></li>
-    <li><span>Дата</span><b id="scheme-selected-date">{{index $.Data "Date"}}</b></li>
-    <li><span>Время</span><b><span id="scheme-selected-start">{{index $.Data "Start"}}</span>–<span id="scheme-selected-end">{{index $.Data "End"}}</span></b></li>
-    <li><span>Статус</span><b id="scheme-selected-status">{{.StatusText}}</b></li>
+    <li><span>Тип</span><b id="scheme-selected-type">{{with $sel}}{{.Type}}{{end}}</b></li>
+    <li><span>Зона</span><b id="scheme-selected-zone">{{with $sel}}{{.Zone}}{{end}}</b></li>
+    <li><span>Дата</span><b id="scheme-selected-date">{{index .Data "Date"}}</b></li>
+    <li><span>Время</span><b><span id="scheme-selected-start">{{index .Data "Start"}}</span>–<span id="scheme-selected-end">{{index .Data "End"}}</span></b></li>
+    <li><span>Статус</span><b id="scheme-selected-status">{{with $sel}}{{.StatusText}}{{end}}</b></li>
   </ul>
 
-  <form id="scheme-book-form" method="post" action="/bookings/create" {{if not (index $.Data "CanBook")}}hidden{{end}}>
-    <input type="hidden" name="workspace_id" id="scheme-book-workspace" value="{{.ID}}">
-    <input type="hidden" name="date"     id="scheme-book-date"  value="{{index $.Data "Date"}}">
-    <input type="hidden" name="start"    id="scheme-book-start" value="{{index $.Data "Start"}}">
-    <input type="hidden" name="end"      id="scheme-book-end"   value="{{index $.Data "End"}}">
-    <input type="hidden" name="duration" id="scheme-book-duration" value="{{index $.Data "Duration"}}">
+  <form id="scheme-book-form" method="post" action="/bookings/create" {{if not (index .Data "CanBook")}}hidden{{end}}>
+    <input type="hidden" name="workspace_id" id="scheme-book-workspace" value="{{with $sel}}{{.ID}}{{end}}">
+    <input type="hidden" name="date"     id="scheme-book-date"  value="{{index .Data "Date"}}">
+    <input type="hidden" name="start"    id="scheme-book-start" value="{{index .Data "Start"}}">
+    <input type="hidden" name="end"      id="scheme-book-end"   value="{{index .Data "End"}}">
+    <input type="hidden" name="duration" id="scheme-book-duration" value="{{index .Data "Duration"}}">
     <button class="btn btn--primary btn--block" type="submit">Забронировать</button>
   </form>
-  <button class="btn btn--secondary btn--block" id="scheme-book-disabled" type="button" disabled {{if index $.Data "CanBook"}}hidden{{end}}>Бронирование недоступно</button>
+  <button class="btn btn--secondary btn--block" id="scheme-book-disabled" type="button" disabled {{if index .Data "CanBook"}}hidden{{end}}>Бронирование недоступно</button>
 
   <a class="btn btn--secondary btn--block scheme-history" id="scheme-history-link"
-     href="/workspaces/history?workspace_id={{.ID}}&filter=today">История бронирований</a>
-  {{end}}
+     href="{{with $sel}}/workspaces/history?workspace_id={{.ID}}&filter=today{{end}}">История бронирований</a>
 </section>
 
 <script src="/static/js/scheme.js"></script>
