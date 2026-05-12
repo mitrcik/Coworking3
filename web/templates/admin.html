@@ -4,6 +4,11 @@
 {{$types := index .Data "WorkspaceTypes"}}
 {{$statuses := index .Data "Statuses"}}
 {{$workspaces := index .Data "Workspaces"}}
+{{$allWorkspaces := index .Data "AllWorkspaces"}}
+{{$coworkings := index .Data "Coworkings"}}
+{{$chosen := index .Data "Chosen"}}
+{{$grid := index .Data "Grid"}}
+{{$chosenID := ""}}{{with $chosen}}{{$chosenID = .ID}}{{end}}
 
 <section class="card">
   <h2 class="card__title">Админ-панель</h2>
@@ -13,11 +18,85 @@
 </section>
 
 <section class="card">
-  <h3 class="card__title">Места</h3>
+  <h3 class="card__title">Коворкинги</h3>
+
+  <form class="form" method="get" action="/admin">
+    <label class="field"><span class="field__label">Выбран коворкинг</span>
+      <select class="field__input" name="coworking_id" onchange="this.form.submit()">
+        {{range $coworkings}}
+          <option value="{{.ID}}" {{if eq .ID $chosenID}}selected{{end}}>{{.Name}} ({{.GridCols}}×{{.GridRows}})</option>
+        {{end}}
+      </select>
+    </label>
+  </form>
 
   <details class="form-block">
-    <summary class="btn btn--secondary btn--block">+ Добавить место</summary>
+    <summary class="btn btn--secondary btn--block">+ Новый коворкинг</summary>
+    <form class="form" method="post" action="/admin/coworkings/create">
+      <label class="field"><span class="field__label">Название</span>
+        <input class="field__input" type="text" name="name" required></label>
+      <div class="form--row">
+        <label class="field"><span class="field__label">Колонки</span>
+          <input class="field__input" type="number" name="grid_cols" min="1" max="20" value="3" required></label>
+        <label class="field"><span class="field__label">Строки</span>
+          <input class="field__input" type="number" name="grid_rows" min="1" max="20" value="3" required></label>
+      </div>
+      <button class="btn btn--primary btn--block" type="submit">Создать</button>
+    </form>
+  </details>
+
+  {{with $chosen}}
+    <details class="form-block">
+      <summary class="btn btn--secondary btn--block">Изменить «{{.Name}}» ({{.GridCols}}×{{.GridRows}})</summary>
+      <form class="form" method="post" action="/admin/coworkings/update">
+        <input type="hidden" name="coworking_id_target" value="{{.ID}}">
+        <input type="hidden" name="coworking_id" value="{{.ID}}">
+        <label class="field"><span class="field__label">Название</span>
+          <input class="field__input" type="text" name="name" value="{{.Name}}" required></label>
+        <div class="form--row">
+          <label class="field"><span class="field__label">Колонки</span>
+            <input class="field__input" type="number" name="grid_cols" min="1" max="20" value="{{.GridCols}}" required></label>
+          <label class="field"><span class="field__label">Строки</span>
+            <input class="field__input" type="number" name="grid_rows" min="1" max="20" value="{{.GridRows}}" required></label>
+        </div>
+        <button class="btn btn--primary btn--block" type="submit">Сохранить</button>
+      </form>
+      <form method="post" action="/admin/coworkings/delete" class="inline-form"
+            onsubmit="return confirm('Удалить коворкинг «{{.Name}}»? Все места в нём должны быть удалены заранее.');">
+        <input type="hidden" name="coworking_id_target" value="{{.ID}}">
+        <input type="hidden" name="coworking_id" value="{{.ID}}">
+        <button class="btn btn--danger btn--block" type="submit">Удалить</button>
+      </form>
+    </details>
+  {{end}}
+</section>
+
+{{with $chosen}}
+<section class="card">
+  <h3 class="card__title">Места: {{.Name}} ({{.GridCols}}×{{.GridRows}})</h3>
+
+  <div class="admin-grid" style="--cols: {{.GridCols}}; --rows: {{.GridRows}};">
+    {{range $row := $grid}}
+      {{range $cell := $row}}
+        <div class="admin-grid__cell {{if $cell.Workspace}}is-filled{{else}}is-empty{{end}}"
+             data-x="{{$cell.X}}" data-y="{{$cell.Y}}">
+          <div class="admin-grid__coord">({{$cell.X}};{{$cell.Y}})</div>
+          {{with $cell.Workspace}}
+            <div class="admin-grid__name">{{.Name}}</div>
+            <div class="admin-grid__type muted">{{.Type}}</div>
+            {{if not .IsAvailable}}<div class="badge badge--CANCELLED_BY_USER">off</div>{{end}}
+          {{else}}
+            <div class="muted">пусто</div>
+          {{end}}
+        </div>
+      {{end}}
+    {{end}}
+  </div>
+
+  <details class="form-block">
+    <summary class="btn btn--secondary btn--block">+ Добавить место в этот коворкинг</summary>
     <form class="form" method="post" action="/admin/workspaces/create">
+      <input type="hidden" name="coworking_id" value="{{.ID}}">
       <label class="field"><span class="field__label">Название</span>
         <input class="field__input" type="text" name="name" required></label>
       <label class="field"><span class="field__label">Тип</span>
@@ -26,16 +105,20 @@
         </select></label>
       <label class="field"><span class="field__label">Зона</span>
         <input class="field__input" type="text" name="zone" required></label>
-      <label class="field"><span class="field__label">position_x</span>
-        <input class="field__input" type="number" name="position_x" value="0" required></label>
-      <label class="field"><span class="field__label">position_y</span>
-        <input class="field__input" type="number" name="position_y" value="0" required></label>
+      <div class="form--row">
+        <label class="field"><span class="field__label">position_x (1..{{.GridCols}})</span>
+          <input class="field__input" type="number" name="position_x" value="1" min="1" max="{{.GridCols}}" required></label>
+        <label class="field"><span class="field__label">position_y (1..{{.GridRows}})</span>
+          <input class="field__input" type="number" name="position_y" value="1" min="1" max="{{.GridRows}}" required></label>
+      </div>
       <label class="checkbox"><input type="checkbox" name="is_available" checked> Доступно</label>
       <button class="btn btn--primary btn--block" type="submit">Создать</button>
     </form>
   </details>
 
   <ul class="list">
+    {{$gridCols := .GridCols}}
+    {{$gridRows := .GridRows}}
     {{range $workspaces}}
     <li class="list__item">
       <details class="full-width">
@@ -47,6 +130,7 @@
         </summary>
         <form class="form" method="post" action="/admin/workspaces/update">
           <input type="hidden" name="workspace_id" value="{{.ID}}">
+          <input type="hidden" name="coworking_id" value="{{.CoworkingID}}">
           <label class="field"><span class="field__label">Название</span>
             <input class="field__input" type="text" name="name" value="{{.Name}}" required></label>
           <label class="field"><span class="field__label">Тип</span>
@@ -56,20 +140,24 @@
             </select></label>
           <label class="field"><span class="field__label">Зона</span>
             <input class="field__input" type="text" name="zone" value="{{.Zone}}" required></label>
-          <label class="field"><span class="field__label">position_x</span>
-            <input class="field__input" type="number" name="position_x" value="{{.PositionX}}" required></label>
-          <label class="field"><span class="field__label">position_y</span>
-            <input class="field__input" type="number" name="position_y" value="{{.PositionY}}" required></label>
+          <div class="form--row">
+            <label class="field"><span class="field__label">position_x (1..{{$gridCols}})</span>
+              <input class="field__input" type="number" name="position_x" value="{{.PositionX}}" min="1" max="{{$gridCols}}" required></label>
+            <label class="field"><span class="field__label">position_y (1..{{$gridRows}})</span>
+              <input class="field__input" type="number" name="position_y" value="{{.PositionY}}" min="1" max="{{$gridRows}}" required></label>
+          </div>
           <label class="checkbox"><input type="checkbox" name="is_available" {{if .IsAvailable}}checked{{end}}> Доступно</label>
           <button class="btn btn--primary btn--block" type="submit">Сохранить</button>
         </form>
         <form method="post" action="/admin/workspaces/toggle" class="inline-form">
           <input type="hidden" name="workspace_id" value="{{.ID}}">
+          <input type="hidden" name="coworking_id" value="{{.CoworkingID}}">
           <input type="hidden" name="available" value="{{if .IsAvailable}}0{{else}}1{{end}}">
           <button class="btn btn--secondary btn--block" type="submit">{{if .IsAvailable}}Отключить{{else}}Включить{{end}}</button>
         </form>
         <form method="post" action="/admin/workspaces/delete" class="inline-form" onsubmit="return confirm('Удалить место?');">
           <input type="hidden" name="workspace_id" value="{{.ID}}">
+          <input type="hidden" name="coworking_id" value="{{.CoworkingID}}">
           <button class="btn btn--danger btn--block" type="submit">Удалить</button>
         </form>
       </details>
@@ -77,11 +165,13 @@
     {{end}}
   </ul>
 </section>
+{{end}}
 
 <section class="card">
   <h3 class="card__title">Бронирования</h3>
 
   <form class="form" method="get" action="/admin">
+    {{with $chosen}}<input type="hidden" name="coworking_id" value="{{.ID}}">{{end}}
     <div class="form--row">
       <label class="field"><span class="field__label">С даты</span>
         <input class="field__input" type="date" name="b_from" value="{{index .Data "FromStr"}}"></label>
@@ -101,7 +191,7 @@
         <select class="field__input" name="b_workspace">
           <option value="">Все</option>
           {{$wsCur := (index .Data "BookingFilter").WorkspaceID}}
-          {{range $workspaces}}<option value="{{.ID}}" {{if eq .ID $wsCur}}selected{{end}}>{{.Name}}</option>{{end}}
+          {{range $allWorkspaces}}<option value="{{.ID}}" {{if eq .ID $wsCur}}selected{{end}}>{{.Name}}</option>{{end}}
         </select></label>
       <button class="btn btn--secondary btn--block" type="submit">Фильтр</button>
     </div>
@@ -149,8 +239,6 @@
   <form class="form" method="post" action="/admin/settings">
     <label class="field"><span class="field__label">Лимит активных бронирований на пользователя</span>
       <input class="field__input" type="number" name="max_active" min="1" step="1" value="{{index .Data "MaxActiveLimit"}}" required></label>
-    <label class="field"><span class="field__label">minLeadHours (часов до отмены без штрафа)</span>
-      <input class="field__input" type="number" name="lead_hours" min="0" step="1" value="0" required></label>
     <button class="btn btn--primary btn--block" type="submit">Сохранить</button>
   </form>
 </section>

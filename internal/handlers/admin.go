@@ -21,15 +21,46 @@ var validWorkspaceTypes = map[string]bool{
 	string(models.WorkspaceLounge):      true,
 }
 
-// adminPanelHandler renders the admin panel with workspaces, bookings and settings.
+// adminPanelHandler renders the admin panel with coworkings, workspaces,
+// bookings and settings. The admin can switch the active coworking via
+// `coworking_id` query param; the workspace CRUD section is scoped to that
+// coworking.
 func (a *App) adminPanelHandler(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Не удалось обработать форму", http.StatusBadRequest)
 		return
 	}
-	workspaces, err := a.Workspaces.List(r.Context())
+	coworkings, err := a.Coworkings.List(r.Context())
 	if err != nil {
-		log.Printf("admin list workspaces: %v", err)
+		log.Printf("admin list coworkings: %v", err)
+		http.Error(w, "Не удалось загрузить коворкинги", http.StatusInternalServerError)
+		return
+	}
+	wanted := r.FormValue("coworking_id")
+	var chosen *models.Coworking
+	for i := range coworkings {
+		if coworkings[i].ID == wanted {
+			c := coworkings[i]
+			chosen = &c
+			break
+		}
+	}
+	if chosen == nil && len(coworkings) > 0 {
+		c := coworkings[0]
+		chosen = &c
+	}
+	var workspaces []models.Workspace
+	if chosen != nil {
+		workspaces, err = a.Workspaces.ListByCoworking(r.Context(), chosen.ID)
+		if err != nil {
+			log.Printf("admin list workspaces: %v", err)
+			http.Error(w, "Не удалось загрузить места", http.StatusInternalServerError)
+			return
+		}
+	}
+	allWorkspaces, err := a.Workspaces.List(r.Context())
+	if err != nil {
+		log.Printf("admin list all workspaces: %v", err)
 		http.Error(w, "Не удалось загрузить места", http.StatusInternalServerError)
 		return
 	}
@@ -75,10 +106,37 @@ func (a *App) adminPanelHandler(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	// Build a 2D grid layout for the chosen coworking so the template can
+	// render the spatial map of workspaces with empty cells marked clearly.
+	var grid [][]adminGridCell
+	if chosen != nil {
+		index := map[[2]int]*models.Workspace{}
+		for i := range workspaces {
+			w := &workspaces[i]
+			index[[2]int{w.PositionX, w.PositionY}] = w
+		}
+		grid = make([][]adminGridCell, chosen.GridRows)
+		for y := 1; y <= chosen.GridRows; y++ {
+			row := make([]adminGridCell, chosen.GridCols)
+			for x := 1; x <= chosen.GridCols; x++ {
+				cell := adminGridCell{X: x, Y: y}
+				if w, ok := index[[2]int{x, y}]; ok {
+					cell.Workspace = w
+				}
+				row[x-1] = cell
+			}
+			grid[y-1] = row
+		}
+	}
+
 	pd := pageDataFor(r, "Админ-панель", "admin")
 	pd.Flash = r.URL.Query().Get("flash")
 	pd.Data = map[string]any{
+		"Coworkings":      coworkings,
+		"Chosen":          chosen,
 		"Workspaces":      workspaces,
+		"AllWorkspaces":   allWorkspaces,
+		"Grid":            grid,
 		"Bookings":        views,
 		"MaxActiveLimit":  settings.MaxActiveBookingsPerUser,
 		"FlashErr":        r.URL.Query().Get("err"),
@@ -91,6 +149,14 @@ func (a *App) adminPanelHandler(w http.ResponseWriter, r *http.Request) {
 	render(w, "admin.html", pd)
 }
 
+// adminGridCell describes one (x,y) slot in the chosen coworking's grid.
+// `Workspace` is nil when the cell is free (admin can place a new place there).
+type adminGridCell struct {
+	X         int
+	Y         int
+	Workspace *models.Workspace
+}
+
 type bookingAdminView struct {
 	repo.BookingView
 	DateStr    string
@@ -101,6 +167,8 @@ type bookingAdminView struct {
 }
 
 // adminBack redirects to the admin panel with optional flash messages.
+// If a `coworking_id` is provided (either via form or query string), it is
+// preserved so the user lands back on the same coworking after a CRUD action.
 func adminBack(w http.ResponseWriter, r *http.Request, flash, errMsg string) {
 	q := url.Values{}
 	if flash != "" {
@@ -108,6 +176,9 @@ func adminBack(w http.ResponseWriter, r *http.Request, flash, errMsg string) {
 	}
 	if errMsg != "" {
 		q.Set("err", errMsg)
+	}
+	if cw := strings.TrimSpace(r.FormValue("coworking_id")); cw != "" {
+		q.Set("coworking_id", cw)
 	}
 	target := "/admin"
 	if len(q) > 0 {
@@ -130,6 +201,38 @@ func parseXY(xs, ys string) (int, int, error) {
 	return x, y, nil
 }
 
+// classifyWorkspaceUserError maps repository errors to localized admin
+// messages. Anything we don’t recognise becomes a generic 500-style message.
+func classifyWorkspaceUserError(err error) string {
+	switch {
+	case errors.Is(err, repo.ErrWorkspaceNameTaken):
+		return "Это название уже используется в этом коворкинге"
+	case errors.Is(err, repo.ErrPositionTaken):
+		return "Эта позиция уже занята другим местом"
+	case errors.Is(err, repo.ErrPositionOutOfGrid):
+		return "Координаты выходят за границы сетки коворкинга"
+	case errors.Is(err, repo.ErrCoworkingNotFound):
+		return "Коворкинг не найден"
+	default:
+		return ""
+	}
+}
+
+// resolveCoworkingForCreate validates the form-supplied coworking id against
+// the active coworking list and returns its grid size. The size is used to
+// check that (x,y) fits within the grid.
+func (a *App) resolveCoworkingForCreate(r *http.Request) (*models.Coworking, error) {
+	id := strings.TrimSpace(r.FormValue("coworking_id"))
+	if id == "" {
+		return nil, repo.ErrCoworkingNotFound
+	}
+	cw, err := a.Coworkings.FindByID(r.Context(), id)
+	if err != nil {
+		return nil, err
+	}
+	return cw, nil
+}
+
 func (a *App) adminWorkspaceCreateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -137,6 +240,11 @@ func (a *App) adminWorkspaceCreateHandler(w http.ResponseWriter, r *http.Request
 	}
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Не удалось обработать форму", http.StatusBadRequest)
+		return
+	}
+	cw, err := a.resolveCoworkingForCreate(r)
+	if err != nil {
+		adminBack(w, r, "", "Выберите коворкинг")
 		return
 	}
 	name := strings.TrimSpace(r.FormValue("name"))
@@ -156,9 +264,17 @@ func (a *App) adminWorkspaceCreateHandler(w http.ResponseWriter, r *http.Request
 		adminBack(w, r, "", err.Error())
 		return
 	}
-	if _, err := a.Workspaces.Create(r.Context(), name, zone, models.WorkspaceType(wtype), avail, x, y); err != nil {
+	if x < 1 || y < 1 || x > cw.GridCols || y > cw.GridRows {
+		adminBack(w, r, "", "Координаты выходят за границы сетки коворкинга")
+		return
+	}
+	if _, err := a.Workspaces.Create(r.Context(), cw.ID, name, zone, models.WorkspaceType(wtype), avail, x, y); err != nil {
+		if msg := classifyWorkspaceUserError(err); msg != "" {
+			adminBack(w, r, "", msg)
+			return
+		}
 		log.Printf("admin create ws: %v", err)
-		adminBack(w, r, "", "Не удалось создать место (возможно, имя уже используется)")
+		adminBack(w, r, "", "Не удалось создать место")
 		return
 	}
 	adminBack(w, r, "Место добавлено", "")
@@ -191,7 +307,32 @@ func (a *App) adminWorkspaceUpdateHandler(w http.ResponseWriter, r *http.Request
 		adminBack(w, r, "", err.Error())
 		return
 	}
+	// Load existing workspace to know its coworking + verify grid bounds.
+	existing, err := a.Workspaces.FindByID(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, repo.ErrWorkspaceNotFound) {
+			adminBack(w, r, "", "Место не найдено")
+			return
+		}
+		log.Printf("admin update ws: find: %v", err)
+		adminBack(w, r, "", "Не удалось обновить место")
+		return
+	}
+	cw, err := a.Coworkings.FindByID(r.Context(), existing.CoworkingID)
+	if err != nil {
+		log.Printf("admin update ws: coworking: %v", err)
+		adminBack(w, r, "", "Не удалось обновить место")
+		return
+	}
+	if x < 1 || y < 1 || x > cw.GridCols || y > cw.GridRows {
+		adminBack(w, r, "", "Координаты выходят за границы сетки коворкинга")
+		return
+	}
 	if err := a.Workspaces.Update(r.Context(), id, name, zone, models.WorkspaceType(wtype), avail, x, y); err != nil {
+		if msg := classifyWorkspaceUserError(err); msg != "" {
+			adminBack(w, r, "", msg)
+			return
+		}
 		log.Printf("admin update ws: %v", err)
 		adminBack(w, r, "", "Не удалось обновить место")
 		return
@@ -307,15 +448,133 @@ func (a *App) adminSettingsHandler(w http.ResponseWriter, r *http.Request) {
 		adminBack(w, r, "", "Лимит должен быть положительным целым числом")
 		return
 	}
-	leadHours, err := strconv.Atoi(strings.TrimSpace(r.FormValue("lead_hours")))
-	if err != nil || leadHours < 0 {
-		adminBack(w, r, "", "minLeadHours должно быть неотрицательным целым числом")
-		return
-	}
-	if err := a.Settings.Update(r.Context(), v, leadHours, user.ID); err != nil {
+	if err := a.Settings.Update(r.Context(), v, user.ID); err != nil {
 		log.Printf("admin settings update: %v", err)
 		adminBack(w, r, "", "Не удалось сохранить настройки")
 		return
 	}
 	adminBack(w, r, "Настройки сохранены", "")
+}
+
+// --- coworkings -------------------------------------------------------------
+
+// classifyCoworkingUserError maps repository errors to localized admin
+// messages for the coworking CRUD flows.
+func classifyCoworkingUserError(err error) string {
+	switch {
+	case errors.Is(err, repo.ErrCoworkingNameTaken):
+		return "Коворкинг с таким названием уже существует"
+	case errors.Is(err, repo.ErrCoworkingNotFound):
+		return "Коворкинг не найден"
+	case errors.Is(err, repo.ErrCoworkingHasWorkspaces):
+		return "Нельзя удалить коворкинг, в котором есть места"
+	case errors.Is(err, repo.ErrCoworkingHasWorkspacesOut):
+		return "Нельзя уменьшить сетку: некоторые места окажутся за её границами"
+	default:
+		return ""
+	}
+}
+
+func parseGridSize(colsStr, rowsStr string) (cols, rows int, err error) {
+	cols, err = strconv.Atoi(strings.TrimSpace(colsStr))
+	if err != nil || cols < 1 || cols > repo.MaxGridDimension {
+		return 0, 0, errors.New("Размер сетки должен быть от 1 до 20")
+	}
+	rows, err = strconv.Atoi(strings.TrimSpace(rowsStr))
+	if err != nil || rows < 1 || rows > repo.MaxGridDimension {
+		return 0, 0, errors.New("Размер сетки должен быть от 1 до 20")
+	}
+	return cols, rows, nil
+}
+
+func (a *App) adminCoworkingCreateHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Не удалось обработать форму", http.StatusBadRequest)
+		return
+	}
+	name := strings.TrimSpace(r.FormValue("name"))
+	if name == "" {
+		adminBack(w, r, "", "Название коворкинга обязательно")
+		return
+	}
+	cols, rows, err := parseGridSize(r.FormValue("grid_cols"), r.FormValue("grid_rows"))
+	if err != nil {
+		adminBack(w, r, "", err.Error())
+		return
+	}
+	if _, err := a.Coworkings.Create(r.Context(), name, cols, rows); err != nil {
+		if msg := classifyCoworkingUserError(err); msg != "" {
+			adminBack(w, r, "", msg)
+			return
+		}
+		log.Printf("admin create coworking: %v", err)
+		adminBack(w, r, "", "Не удалось создать коворкинг")
+		return
+	}
+	adminBack(w, r, "Коворкинг создан", "")
+}
+
+func (a *App) adminCoworkingUpdateHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Не удалось обработать форму", http.StatusBadRequest)
+		return
+	}
+	id := r.FormValue("coworking_id_target")
+	if id == "" {
+		id = r.FormValue("coworking_id")
+	}
+	name := strings.TrimSpace(r.FormValue("name"))
+	if id == "" || name == "" {
+		adminBack(w, r, "", "Заполните название и сетку")
+		return
+	}
+	cols, rows, err := parseGridSize(r.FormValue("grid_cols"), r.FormValue("grid_rows"))
+	if err != nil {
+		adminBack(w, r, "", err.Error())
+		return
+	}
+	if err := a.Coworkings.Update(r.Context(), id, name, cols, rows); err != nil {
+		if msg := classifyCoworkingUserError(err); msg != "" {
+			adminBack(w, r, "", msg)
+			return
+		}
+		log.Printf("admin update coworking: %v", err)
+		adminBack(w, r, "", "Не удалось обновить коворкинг")
+		return
+	}
+	adminBack(w, r, "Коворкинг обновлён", "")
+}
+
+func (a *App) adminCoworkingDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Не удалось обработать форму", http.StatusBadRequest)
+		return
+	}
+	id := r.FormValue("coworking_id_target")
+	if id == "" {
+		adminBack(w, r, "", "Не указан коворкинг для удаления")
+		return
+	}
+	if err := a.Coworkings.Delete(r.Context(), id); err != nil {
+		if msg := classifyCoworkingUserError(err); msg != "" {
+			adminBack(w, r, "", msg)
+			return
+		}
+		log.Printf("admin delete coworking: %v", err)
+		adminBack(w, r, "", "Не удалось удалить коворкинг")
+		return
+	}
+	adminBack(w, r, "Коворкинг удалён", "")
 }

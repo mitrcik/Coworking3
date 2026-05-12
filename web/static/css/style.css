@@ -147,7 +147,7 @@ body {
 
 .map {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(var(--cols, 3), 1fr);
   grid-auto-rows: 80px;
   gap: 8px;
 }
@@ -412,3 +412,82 @@ details[open] > summary { margin-bottom: 8px; }
 @media (min-width: 481px) {
   body { box-shadow: 0 0 0 1px var(--border); }
 }
+
+/* Cancellation cool-down banner */
+.banner {
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+.banner--danger {
+  background: #fdecec;
+  color: #b53a3a;
+  border: 1px solid #f0b9b9;
+}
+
+/* Coworking combobox on /scheme */
+.combobox { position: relative; margin-bottom: 8px; }
+.combobox__input { width: 100%; }
+.combobox__list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 4px 0;
+  position: absolute;
+  inset-inline: 0;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 5;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+.combobox__option {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.combobox__option:hover { background: #f3f5fa; }
+
+/* Mode tabs for preset / custom interval */
+.scheme-form__mode-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-top: 4px; }
+.tab {
+  background: transparent;
+  border: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+}
+.tab.is-active {
+  color: var(--text);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+.scheme-form__custom { display: flex; flex-direction: column; gap: 6px; }
+
+/* Admin grid layout */
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.admin-grid__cell {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  min-height: 72px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.admin-grid__cell.is-filled { background: #f3f7fb; border-style: solid; }
+.admin-grid__cell.is-empty { background: #fafafa; color: var(--muted); }
+.admin-grid__coord { font-size: 10px; color: var(--muted); }
+.admin-grid__name { font-weight: 700; }
+.admin-grid__type { font-size: 11px; }

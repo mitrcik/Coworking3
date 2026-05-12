@@ -14,6 +14,7 @@ import (
 
 // App carries shared dependencies (database repositories, sessions) for handlers.
 type App struct {
+	Coworkings *repo.CoworkingRepo
 	Workspaces *repo.WorkspaceRepo
 	Users      *repo.UserRepo
 	Bookings   *repo.BookingRepo
@@ -78,6 +79,9 @@ func (a *App) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/admin/workspaces/update", a.requireAdmin(a.adminWorkspaceUpdateHandler))
 	mux.HandleFunc("/admin/workspaces/toggle", a.requireAdmin(a.adminWorkspaceToggleHandler))
 	mux.HandleFunc("/admin/workspaces/delete", a.requireAdmin(a.adminWorkspaceDeleteHandler))
+	mux.HandleFunc("/admin/coworkings/create", a.requireAdmin(a.adminCoworkingCreateHandler))
+	mux.HandleFunc("/admin/coworkings/update", a.requireAdmin(a.adminCoworkingUpdateHandler))
+	mux.HandleFunc("/admin/coworkings/delete", a.requireAdmin(a.adminCoworkingDeleteHandler))
 	mux.HandleFunc("/admin/bookings/cancel", a.requireAdmin(a.adminBookingCancelHandler))
 	mux.HandleFunc("/admin/bookings/status", a.requireAdmin(a.adminBookingStatusHandler))
 	mux.HandleFunc("/admin/settings", a.requireAdmin(a.adminSettingsHandler))

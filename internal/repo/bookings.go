@@ -118,6 +118,43 @@ func (r *BookingRepo) HasUserConflict(ctx context.Context, userID string, start,
 	return exists, nil
 }
 
+// CooldownUntil returns the time at which the user-cancellation cool-down
+// (3+ cancellations within the last 24 h → 12 h block) expires.
+//
+// If the user is not currently blocked, a zero time.Time is returned.
+// `now` is the reference moment for the lookback window and the threshold
+// is computed from the moment of the user's third most recent cancellation
+// in the last 24 h (plus 12 h).
+func (r *BookingRepo) CooldownUntil(ctx context.Context, userID string, now time.Time) (time.Time, error) {
+	since := now.Add(-24 * time.Hour)
+	const q = `
+        WITH recent AS (
+            SELECT cancelled_at
+            FROM bookings
+            WHERE user_id = $1
+              AND status = 'CANCELLED_BY_USER'
+              AND cancelled_at IS NOT NULL
+              AND cancelled_at >= $2
+            ORDER BY cancelled_at DESC
+            LIMIT 3
+        )
+        SELECT MIN(cancelled_at), COUNT(*) FROM recent
+    `
+	var oldest sql.NullTime
+	var n int
+	if err := r.DB.QueryRowContext(ctx, q, userID, since).Scan(&oldest, &n); err != nil {
+		return time.Time{}, err
+	}
+	if n < 3 || !oldest.Valid {
+		return time.Time{}, nil
+	}
+	until := oldest.Time.Add(12 * time.Hour)
+	if !until.After(now) {
+		return time.Time{}, nil
+	}
+	return until, nil
+}
+
 // CountActiveByUser counts CONFIRMED bookings for a user that have not ended yet.
 func (r *BookingRepo) CountActiveByUser(ctx context.Context, userID string, now time.Time) (int, error) {
 	const q = `
