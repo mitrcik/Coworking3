@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: ${DOCKER_REGISTRY:-mirror.gcr.io}/${DOCKER_REGISTRY_LIBRARY_PREFIX-library/}postgres:16-alpine
     container_name: coworking_db
     environment:
       POSTGRES_USER: coworking
@@ -18,7 +18,11 @@ services:
       retries: 20
 
   app:
-    build: .
+    build:
+      context: .
+      args:
+        REGISTRY: ${DOCKER_REGISTRY:-mirror.gcr.io}
+        REGISTRY_LIBRARY_PREFIX: ${DOCKER_REGISTRY_LIBRARY_PREFIX-library/}
     container_name: coworking_app
     depends_on:
       db:

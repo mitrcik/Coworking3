@@ -26,6 +26,29 @@ docker compose up --build
 docker compose down -v
 ```
 
+### Если Docker Hub недоступен (TLS handshake timeout)
+
+По умолчанию базовые образы (`golang:1.22-alpine`, `alpine:3.20`, `postgres:16-alpine`) тянутся через `mirror.gcr.io` — пул-через-кэш Docker Hub от Google, обычно доступен из РФ без VPN. Если и он не открывается, переопредели реестр через переменную окружения:
+
+PowerShell:
+```powershell
+$env:DOCKER_REGISTRY = "huecker.io"
+docker compose up -d --build
+```
+
+Bash:
+```bash
+DOCKER_REGISTRY=huecker.io docker compose up -d --build
+```
+
+Известные доступные из РФ зеркала Docker Hub:
+
+- `mirror.gcr.io` (по умолчанию)
+- `huecker.io`
+- `dockerhub.timeweb.cloud`
+
+Если зеркало не использует префикс `library/` для образов из Docker Hub Library, дополнительно задай `DOCKER_REGISTRY_LIBRARY_PREFIX=""`.
+
 ## Учётные записи
 
 - **Администратор:** `admin@example.com` / `admin` (создаётся автоматически на этапе 2)
