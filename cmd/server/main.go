@@ -24,6 +24,7 @@ func main() {
 	defer conn.Close()
 
 	app := &handlers.App{
+		Coworkings: repo.NewCoworkingRepo(conn),
 		Workspaces: repo.NewWorkspaceRepo(conn),
 		Users:      repo.NewUserRepo(conn),
 		Bookings:   repo.NewBookingRepo(conn),

@@ -1,4 +1,4 @@
--- Начальные данные (Stage 2). Скрипт идемпотентный.
+-- Начальные данные (Stage 2 + доработки). Скрипт идемпотентный.
 
 -- 1) Администратор admin@example.com / admin.
 -- pgcrypto crypt() с алгоритмом 'bf' даёт bcrypt-совместимый хеш ($2a$),
@@ -8,14 +8,20 @@ SELECT 'Администратор', 'admin@example.com', crypt('admin', gen_sal
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@example.com');
 
 -- 2) Дефолтные настройки (singleton).
-INSERT INTO booking_settings (max_active_bookings_per_user, cancellation_lead_time_hours, updated_by)
-SELECT 3, 1, (SELECT user_id FROM users WHERE email = 'admin@example.com')
+INSERT INTO booking_settings (max_active_bookings_per_user, updated_by)
+SELECT 3, (SELECT user_id FROM users WHERE email = 'admin@example.com')
 WHERE NOT EXISTS (SELECT 1 FROM booking_settings);
 
--- 3) Начальные рабочие места для схемы коворкинга.
+-- 3) Дефолтный коворкинг для сидовых мест.
+INSERT INTO coworkings (name, grid_cols, grid_rows)
+SELECT 'Главный коворкинг', 3, 3
+WHERE NOT EXISTS (SELECT 1 FROM coworkings WHERE name = 'Главный коворкинг');
+
+-- 4) Начальные рабочие места для схемы коворкинга.
 --    Сетка 3x3 — три зоны: тихая (Y=1), командная (Y=2), переговорные/лаунж (Y=3).
-INSERT INTO workspaces (name, type, zone, is_available, position_x, position_y)
-SELECT v.name, v.wtype::workspace_type, v.zone, v.is_available, v.x, v.y
+INSERT INTO workspaces (coworking_id, name, type, zone, is_available, position_x, position_y)
+SELECT (SELECT coworking_id FROM coworkings WHERE name = 'Главный коворкинг'),
+       v.name, v.wtype::workspace_type, v.zone, v.is_available, v.x, v.y
 FROM (
     VALUES
         ('A1', 'DESK',         'Тихая зона',   TRUE,  1, 1),

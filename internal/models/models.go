@@ -54,8 +54,17 @@ type User struct {
 	CreatedAt          time.Time
 }
 
+type Coworking struct {
+	ID        string
+	Name      string
+	GridCols  int
+	GridRows  int
+	CreatedAt time.Time
+}
+
 type Workspace struct {
 	ID          string
+	CoworkingID string
 	Name        string
 	Type        WorkspaceType
 	Zone        string
@@ -77,11 +86,10 @@ type Booking struct {
 }
 
 type BookingSettings struct {
-	ID                          string
-	MaxActiveBookingsPerUser    int
-	CancellationLeadTimeHours   int
-	UpdatedBy                   *string
-	UpdatedAt                   time.Time
+	ID                       string
+	MaxActiveBookingsPerUser int
+	UpdatedBy                *string
+	UpdatedAt                time.Time
 }
 
 type Report struct {

@@ -1,6 +1,7 @@
--- Coworking booking system schema (Stage 2).
+-- Coworking booking system schema (Stage 2 + доработки).
 -- Соответствие .md-файлу:
 --   User             -> users
+--   Coworking        -> coworkings
 --   Workspace        -> workspaces
 --   Booking          -> bookings
 --   BookingSettings  -> booking_settings
@@ -57,20 +58,34 @@ CREATE TABLE IF NOT EXISTS users (
     created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- COWORKING ------------------------------------------------------------------
+-- Коворкинг — контейнер для рабочих мест, с собственной сеткой grid_cols × grid_rows.
+CREATE TABLE IF NOT EXISTS coworkings (
+    coworking_id  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name          TEXT        NOT NULL UNIQUE,
+    grid_cols     INTEGER     NOT NULL CHECK (grid_cols  BETWEEN 1 AND 20),
+    grid_rows     INTEGER     NOT NULL CHECK (grid_rows  BETWEEN 1 AND 20),
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- WORKSPACE ------------------------------------------------------------------
--- workspaceId, name, type, isAvailable, positionX, positionY, createdAt
--- Поле zone добавлено как "техническое" поле для группировки мест по зонам
--- (упоминается в UC-2/UC-5 как параметр места).
+-- workspaceId, coworkingId (FK), name, type, isAvailable, positionX, positionY,
+-- createdAt. Поле zone используется как тех. группировка (см. UC-2/UC-5).
 CREATE TABLE IF NOT EXISTS workspaces (
     workspace_id  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name          TEXT           NOT NULL UNIQUE,
+    coworking_id  UUID           NOT NULL REFERENCES coworkings(coworking_id) ON DELETE RESTRICT,
+    name          TEXT           NOT NULL,
     type          workspace_type NOT NULL,
     zone          TEXT           NOT NULL DEFAULT '',
     is_available  BOOLEAN        NOT NULL DEFAULT TRUE,
-    position_x    INTEGER        NOT NULL,
-    position_y    INTEGER        NOT NULL,
-    created_at    TIMESTAMPTZ    NOT NULL DEFAULT NOW()
+    position_x    INTEGER        NOT NULL CHECK (position_x >= 1),
+    position_y    INTEGER        NOT NULL CHECK (position_y >= 1),
+    created_at    TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+    CONSTRAINT workspaces_name_per_coworking UNIQUE (coworking_id, name),
+    CONSTRAINT workspaces_position_per_coworking UNIQUE (coworking_id, position_x, position_y)
 );
+
+CREATE INDEX IF NOT EXISTS workspaces_coworking_idx ON workspaces (coworking_id);
 
 -- BOOKING --------------------------------------------------------------------
 -- bookingId, startTime, endTime, status, createdAt, cancelledAt
@@ -87,19 +102,18 @@ CREATE TABLE IF NOT EXISTS bookings (
     CONSTRAINT bookings_time_order CHECK (end_time > start_time)
 );
 
-CREATE INDEX IF NOT EXISTS bookings_user_id_idx       ON bookings (user_id);
-CREATE INDEX IF NOT EXISTS bookings_workspace_id_idx  ON bookings (workspace_id);
-CREATE INDEX IF NOT EXISTS bookings_time_idx          ON bookings (start_time, end_time);
+CREATE INDEX IF NOT EXISTS bookings_user_id_idx          ON bookings (user_id);
+CREATE INDEX IF NOT EXISTS bookings_workspace_id_idx     ON bookings (workspace_id);
+CREATE INDEX IF NOT EXISTS bookings_time_idx             ON bookings (start_time, end_time);
+CREATE INDEX IF NOT EXISTS bookings_cancellations_idx    ON bookings (user_id, status, cancelled_at);
 
 -- BOOKING_SETTINGS -----------------------------------------------------------
--- settingsId (singleton), maxActiveBookingsPerUser, cancellationLeadTimeHours,
--- updatedBy, updatedAt
--- Связь User ↔ BookingSettings: updated_by ссылается на users.
+-- settingsId (singleton), maxActiveBookingsPerUser, updatedBy, updatedAt.
+-- Параметр cancellation_lead_time_hours удалён — заменён на cancellation-throttle
+-- (3 отмены за 24 часа → блокировка на 12 часов), реализованный в коде, без хранения.
 CREATE TABLE IF NOT EXISTS booking_settings (
     settings_id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     max_active_bookings_per_user   INTEGER NOT NULL CHECK (max_active_bookings_per_user > 0),
-    cancellation_lead_time_hours   INTEGER NOT NULL DEFAULT 1
-                                   CHECK (cancellation_lead_time_hours >= 0),
     updated_by                     UUID NULL REFERENCES users(user_id) ON DELETE SET NULL,
     updated_at                     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
