@@ -73,3 +73,42 @@ func (r *UserRepo) EmailExists(ctx context.Context, email string) (bool, error) 
 	err := r.DB.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)`, email).Scan(&exists)
 	return exists, err
 }
+
+// EmailTakenByOther returns true if some OTHER user already owns this email.
+func (r *UserRepo) EmailTakenByOther(ctx context.Context, email, userID string) (bool, error) {
+	var exists bool
+	err := r.DB.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 AND user_id <> $2)`,
+		email, userID).Scan(&exists)
+	return exists, err
+}
+
+// UpdateProfile updates full_name and email for the given user.
+func (r *UserRepo) UpdateProfile(ctx context.Context, userID, fullName, email string) error {
+	res, err := r.DB.ExecContext(ctx,
+		`UPDATE users SET full_name = $2, email = $3 WHERE user_id = $1`,
+		userID, fullName, email)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrUserNotFound
+	}
+	return nil
+}
+
+// UpdatePassword updates password_hash for the given user.
+func (r *UserRepo) UpdatePassword(ctx context.Context, userID, passwordHash string) error {
+	res, err := r.DB.ExecContext(ctx,
+		`UPDATE users SET password_hash = $2 WHERE user_id = $1`,
+		userID, passwordHash)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrUserNotFound
+	}
+	return nil
+}

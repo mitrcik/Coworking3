@@ -1,0 +1,51 @@
+{{define "settings.html"}}{{template "layout" .}}{{end}}
+
+{{define "content"}}
+<section class="card">
+  <h2 class="card__title">Настройки аккаунта</h2>
+  {{with .Flash}}{{if .}}<div class="success">{{.}}</div>{{end}}{{end}}
+  {{with index .Data "Error"}}{{if .}}<div class="error">{{.}}</div>{{end}}{{end}}
+</section>
+
+<section class="card">
+  <h3 class="card__title">Профиль</h3>
+  <form class="form" method="post" action="/settings">
+    <input type="hidden" name="form" value="profile">
+    <label class="field">
+      <span class="field__label">ФИО</span>
+      <input class="field__input" type="text" name="full_name" value="{{index .Data "FullName"}}" required>
+    </label>
+    <label class="field">
+      <span class="field__label">Email</span>
+      <input class="field__input" type="text" name="email" value="{{index .Data "Email"}}" required>
+    </label>
+    <button class="btn btn--primary btn--block" type="submit">Сохранить профиль</button>
+  </form>
+</section>
+
+<section class="card">
+  <h3 class="card__title">Смена пароля</h3>
+  <form class="form" method="post" action="/settings">
+    <input type="hidden" name="form" value="password">
+    <label class="field">
+      <span class="field__label">Текущий пароль</span>
+      <input class="field__input" type="password" name="current_password" required>
+    </label>
+    <label class="field">
+      <span class="field__label">Новый пароль</span>
+      <input class="field__input" type="password" name="new_password" required>
+    </label>
+    <label class="field">
+      <span class="field__label">Повторите новый пароль</span>
+      <input class="field__input" type="password" name="new_password_confirm" required>
+    </label>
+    <button class="btn btn--primary btn--block" type="submit">Сменить пароль</button>
+  </form>
+</section>
+
+<section class="card">
+  <div class="actions">
+    <a class="btn btn--secondary btn--block" href="/logout">Выйти из аккаунта</a>
+  </div>
+</section>
+{{end}}

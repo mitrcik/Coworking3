@@ -4,23 +4,46 @@
 <section class="card">
   <h2 class="card__title">Схема коворкинга</h2>
 
-  {{with index .Data "Error"}}{{if .}}<div class="error">{{.}}</div>{{end}}{{end}}
+  <div id="scheme-error" class="error" {{with index .Data "Error"}}{{if not .}}hidden{{end}}{{else}}hidden{{end}}>
+    {{with index .Data "Error"}}{{.}}{{end}}
+  </div>
 
-  <form class="form form--row" method="get" action="/scheme">
-    <input type="hidden" name="workspace_id" value="{{with index .Data "Selected"}}{{.ID}}{{end}}">
-    <label class="field">
-      <span class="field__label">Дата</span>
-      <input class="field__input" type="date" name="date" value="{{index .Data "Date"}}" required>
-    </label>
-    <label class="field">
-      <span class="field__label">С</span>
-      <input class="field__input" type="time" name="start" value="{{index .Data "Start"}}" required>
-    </label>
-    <label class="field">
-      <span class="field__label">До</span>
-      <input class="field__input" type="time" name="end" value="{{index .Data "End"}}" required>
-    </label>
-    <button class="btn btn--secondary btn--block" type="submit">Показать занятость</button>
+  <form id="scheme-form" class="form scheme-form" method="get" action="/scheme" data-max-ahead="{{index .Data "MaxAhead"}}">
+    <input type="hidden" name="workspace_id" id="scheme-workspace-id" value="{{with index .Data "Selected"}}{{.ID}}{{end}}">
+    <div class="scheme-form__row">
+      <label class="field">
+        <span class="field__label">Дата</span>
+        <input class="field__input" id="scheme-date" type="date" name="date" value="{{index .Data "Date"}}" required>
+      </label>
+      <label class="field">
+        <span class="field__label">Начало</span>
+        <input class="field__input" id="scheme-start" type="time" step="60" name="start" value="{{index .Data "Start"}}" required>
+      </label>
+    </div>
+    <div class="scheme-form__duration">
+      <span class="field__label">Длительность</span>
+      <div class="duration-grid" id="scheme-duration-buttons">
+        {{$current := index .Data "Duration"}}
+        {{range $d := index .Data "Durations"}}
+          <label class="duration-chip {{if eq (printf "%d" $d) $current}}is-active{{end}}">
+            <input type="radio" name="duration" value="{{$d}}" {{if eq (printf "%d" $d) $current}}checked{{end}}>
+            <span>
+              {{if lt $d 60}}{{$d}} мин
+              {{else if eq $d 60}}1 ч
+              {{else if eq $d 90}}1.5 ч
+              {{else if eq $d 120}}2 ч
+              {{else if eq $d 180}}3 ч
+              {{else}}{{$d}} мин{{end}}
+            </span>
+          </label>
+        {{end}}
+      </div>
+    </div>
+    <div class="scheme-form__hint muted" id="scheme-end-hint">До <b id="scheme-end-display">{{index .Data "End"}}</b></div>
+    <noscript>
+      <button class="btn btn--secondary btn--block" type="submit">Показать занятость</button>
+    </noscript>
+    <div class="muted scheme-form__live">Изменения применяются автоматически.</div>
   </form>
 </section>
 
@@ -30,48 +53,47 @@
     <span class="legend__chip legend__chip--busy"></span> Занято
     <span class="legend__chip legend__chip--off"></span> Недоступно
   </div>
-  <div class="map">
+  <div class="map" id="scheme-map">
     {{$selectedID := ""}}{{with index .Data "Selected"}}{{$selectedID = .ID}}{{end}}
     {{range index .Data "Workspaces"}}
-      {{if or .Disabled .Busy}}
-        <div class="map__seat is-{{.StatusKey}}{{if eq .ID $selectedID}} is-selected{{end}}" title="{{.Name}} — {{.StatusText}}">
-          <div class="map__seat-name">{{.Name}}</div>
-          <div class="map__seat-type">{{.StatusText}}</div>
-        </div>
-      {{else}}
-        <a class="map__seat is-{{.StatusKey}}{{if eq .ID $selectedID}} is-selected{{end}}"
-           title="{{.Name}} — {{.Zone}}"
-           href="/scheme?date={{index $.Data "Date"}}&start={{index $.Data "Start"}}&end={{index $.Data "End"}}&workspace_id={{.ID}}">
-          <div class="map__seat-name">{{.Name}}</div>
-          <div class="map__seat-type">{{.StatusText}}</div>
-        </a>
-      {{end}}
+      <a class="map__seat is-{{.StatusKey}}{{if eq .ID $selectedID}} is-selected{{end}}"
+         data-workspace-id="{{.ID}}"
+         data-status="{{.StatusKey}}"
+         title="{{.Name}} — {{.StatusText}}{{if .BusyLabel}} {{.BusyLabel}}{{end}}"
+         href="/scheme?workspace_id={{.ID}}">
+        <div class="map__seat-name">{{.Name}}</div>
+        <div class="map__seat-type">{{.StatusText}}</div>
+        {{if .BusyLabel}}<div class="map__seat-label">{{.BusyLabel}}</div>{{end}}
+      </a>
     {{end}}
   </div>
 </section>
 
-{{with index .Data "Selected"}}
-<section class="card">
-  <h3 class="card__title">Выбранное место: {{.Name}}</h3>
+<section class="card" id="scheme-selected-card" {{with index .Data "Selected"}}{{else}}hidden{{end}}>
+  {{with index .Data "Selected"}}
+  <h3 class="card__title">Выбранное место: <span id="scheme-selected-name">{{.Name}}</span></h3>
   <ul class="kv">
-    <li><span>Тип</span><b>{{.Type}}</b></li>
-    <li><span>Зона</span><b>{{.Zone}}</b></li>
-    <li><span>Дата</span><b>{{index $.Data "Date"}}</b></li>
-    <li><span>Время</span><b>{{index $.Data "Start"}}–{{index $.Data "End"}}</b></li>
-    <li><span>Статус</span><b>{{.StatusText}}</b></li>
+    <li><span>Тип</span><b id="scheme-selected-type">{{.Type}}</b></li>
+    <li><span>Зона</span><b id="scheme-selected-zone">{{.Zone}}</b></li>
+    <li><span>Дата</span><b id="scheme-selected-date">{{index $.Data "Date"}}</b></li>
+    <li><span>Время</span><b><span id="scheme-selected-start">{{index $.Data "Start"}}</span>–<span id="scheme-selected-end">{{index $.Data "End"}}</span></b></li>
+    <li><span>Статус</span><b id="scheme-selected-status">{{.StatusText}}</b></li>
   </ul>
 
-  {{if index $.Data "CanBook"}}
-  <form method="post" action="/bookings/create">
-    <input type="hidden" name="workspace_id" value="{{.ID}}">
-    <input type="hidden" name="date"  value="{{index $.Data "Date"}}">
-    <input type="hidden" name="start" value="{{index $.Data "Start"}}">
-    <input type="hidden" name="end"   value="{{index $.Data "End"}}">
+  <form id="scheme-book-form" method="post" action="/bookings/create" {{if not (index $.Data "CanBook")}}hidden{{end}}>
+    <input type="hidden" name="workspace_id" id="scheme-book-workspace" value="{{.ID}}">
+    <input type="hidden" name="date"     id="scheme-book-date"  value="{{index $.Data "Date"}}">
+    <input type="hidden" name="start"    id="scheme-book-start" value="{{index $.Data "Start"}}">
+    <input type="hidden" name="end"      id="scheme-book-end"   value="{{index $.Data "End"}}">
+    <input type="hidden" name="duration" id="scheme-book-duration" value="{{index $.Data "Duration"}}">
     <button class="btn btn--primary btn--block" type="submit">Забронировать</button>
   </form>
-  {{else}}
-    <button class="btn btn--secondary btn--block" type="button" disabled>Бронирование недоступно</button>
+  <button class="btn btn--secondary btn--block" id="scheme-book-disabled" type="button" disabled {{if index $.Data "CanBook"}}hidden{{end}}>Бронирование недоступно</button>
+
+  <a class="btn btn--secondary btn--block scheme-history" id="scheme-history-link"
+     href="/workspaces/history?workspace_id={{.ID}}&filter=today">История бронирований</a>
   {{end}}
 </section>
-{{end}}
+
+<script src="/static/js/scheme.js"></script>
 {{end}}

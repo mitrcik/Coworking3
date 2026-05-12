@@ -35,6 +35,10 @@
   <a class="bottom-nav__item {{if eq .ActiveTab "admin"}}is-active{{end}}" href="/admin">
     <span class="bottom-nav__icon">⚙️</span><span class="bottom-nav__label">Админ</span>
   </a>
+  {{else if .IsLoggedIn}}
+  <a class="bottom-nav__item {{if eq .ActiveTab "settings"}}is-active{{end}}" href="/settings">
+    <span class="bottom-nav__icon">👤</span><span class="bottom-nav__label">Аккаунт</span>
+  </a>
   {{else}}
   <a class="bottom-nav__item {{if eq .ActiveTab "auth"}}is-active{{end}}" href="/login">
     <span class="bottom-nav__icon">👤</span><span class="bottom-nav__label">Вход</span>

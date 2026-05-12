@@ -45,6 +45,42 @@ func (r *BookingRepo) BusyWorkspaceIDs(ctx context.Context, start, end time.Time
 	return ids, rows.Err()
 }
 
+// BusyDetail describes a workspace + the booking that occupies it.
+type BusyDetail struct {
+	WorkspaceID string
+	StartTime   time.Time
+	EndTime     time.Time
+}
+
+// BusyDetailsForWorkspaces returns the first overlapping confirmed booking per
+// workspace within [start, end). When multiple bookings overlap the interval
+// we keep the one ending earliest, which is the most useful label ("свободно
+// после X").
+func (r *BookingRepo) BusyDetailsForWorkspaces(ctx context.Context, start, end time.Time) ([]BusyDetail, error) {
+	const q = `
+        SELECT DISTINCT ON (workspace_id) workspace_id, start_time, end_time
+        FROM bookings
+        WHERE status = 'CONFIRMED'
+          AND start_time < $2
+          AND end_time   > $1
+        ORDER BY workspace_id, end_time ASC
+    `
+	rows, err := r.DB.QueryContext(ctx, q, start, end)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []BusyDetail
+	for rows.Next() {
+		var b BusyDetail
+		if err := rows.Scan(&b.WorkspaceID, &b.StartTime, &b.EndTime); err != nil {
+			return nil, err
+		}
+		out = append(out, b)
+	}
+	return out, rows.Err()
+}
+
 // HasConflict checks if a workspace already has a confirmed overlapping booking.
 func (r *BookingRepo) HasConflict(ctx context.Context, workspaceID string, start, end time.Time) (bool, error) {
 	const q = `
@@ -145,6 +181,44 @@ func (r *BookingRepo) ListByUser(ctx context.Context, userID string, statuses []
 	}
 	q += " ORDER BY b.start_time DESC"
 	return r.queryViews(ctx, q, args...)
+}
+
+// ListByWorkspace returns CONFIRMED bookings linked to a workspace.
+// The optional [from, to) interval narrows the result; pass zero values to
+// skip a bound.
+func (r *BookingRepo) ListByWorkspace(ctx context.Context, workspaceID string, from, to time.Time) ([]BookingView, error) {
+	q := baseSelect + ` WHERE b.workspace_id = $1 AND b.status = 'CONFIRMED'`
+	args := []any{workspaceID}
+	if !from.IsZero() {
+		args = append(args, from)
+		q += " AND b.end_time > $" + strconv.Itoa(len(args))
+	}
+	if !to.IsZero() {
+		args = append(args, to)
+		q += " AND b.start_time < $" + strconv.Itoa(len(args))
+	}
+	q += " ORDER BY b.start_time ASC"
+	return r.queryViews(ctx, q, args...)
+}
+
+// CountActiveByUserExcluding counts CONFIRMED bookings that still belong to
+// the user and overlap [now, +∞). Same as CountActiveByUser but with the
+// option of excluding a particular booking_id (useful for "edit" flows).
+func (r *BookingRepo) CountActiveByUserExcluding(ctx context.Context, userID string, now time.Time, excludeBookingID string) (int, error) {
+	q := `
+        SELECT COUNT(*) FROM bookings
+        WHERE user_id = $1 AND status = 'CONFIRMED' AND end_time > $2
+    `
+	args := []any{userID, now}
+	if excludeBookingID != "" {
+		q += " AND booking_id <> $3"
+		args = append(args, excludeBookingID)
+	}
+	var n int
+	if err := r.DB.QueryRowContext(ctx, q, args...).Scan(&n); err != nil {
+		return 0, err
+	}
+	return n, nil
 }
 
 // AdminBookingFilter narrows the admin booking list.
