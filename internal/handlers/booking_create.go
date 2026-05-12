@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -44,24 +45,57 @@ func (a *App) bookingCreateHandler(w http.ResponseWriter, r *http.Request) {
 	dateStr := r.FormValue("date")
 	startStr := r.FormValue("start")
 	endStr := r.FormValue("end")
+	durationStr := r.FormValue("duration")
 
 	loc := time.Local
 	day, derr := time.ParseInLocation("2006-01-02", dateStr, loc)
 	stHM, sterr := parseHourMinute(startStr)
-	enHM, enerr := parseHourMinute(endStr)
-	if wsID == "" || derr != nil || sterr != nil || enerr != nil {
+	if wsID == "" || derr != nil || sterr != nil {
 		redirectScheme(w, r, dateStr, startStr, endStr, wsID, "Заполните все поля бронирования")
 		return
 	}
 	start := time.Date(day.Year(), day.Month(), day.Day(), stHM.h, stHM.m, 0, 0, loc)
-	end := time.Date(day.Year(), day.Month(), day.Day(), enHM.h, enHM.m, 0, 0, loc)
+
+	// Resolve end: prefer explicit duration; fall back to end time field.
+	var end time.Time
+	if durationStr != "" {
+		var dMin int
+		if _, err := fmt.Sscanf(durationStr, "%d", &dMin); err != nil || dMin <= 0 {
+			redirectScheme(w, r, dateStr, startStr, endStr, wsID, "Некорректная длительность бронирования")
+			return
+		}
+		end = start.Add(time.Duration(dMin) * time.Minute)
+		endStr = end.Format("15:04")
+	} else {
+		enHM, enerr := parseHourMinute(endStr)
+		if enerr != nil {
+			redirectScheme(w, r, dateStr, startStr, endStr, wsID, "Заполните все поля бронирования")
+			return
+		}
+		end = time.Date(day.Year(), day.Month(), day.Day(), enHM.h, enHM.m, 0, 0, loc)
+	}
 
 	if !end.After(start) {
 		redirectScheme(w, r, dateStr, startStr, endStr, wsID, "Время окончания должно быть позже времени начала")
 		return
 	}
-	if end.Before(time.Now()) {
+	// P.12 — single booking ≤ MaxBookingMinutes.
+	durationMinutes := int(end.Sub(start).Minutes())
+	if durationMinutes > MaxBookingMinutes {
+		redirectScheme(w, r, dateStr, startStr, endStr, wsID,
+			fmt.Sprintf("Бронировать можно не больше %d часов подряд", MaxBookingMinutes/60))
+		return
+	}
+	now := time.Now()
+	if end.Before(now) {
 		redirectScheme(w, r, dateStr, startStr, endStr, wsID, "Нельзя бронировать в прошлом")
+		return
+	}
+	// P.12 — booking can only start up to MaxBookingAheadDays in the future.
+	maxAhead := now.Add(time.Duration(MaxBookingAheadDays) * 24 * time.Hour)
+	if start.After(maxAhead) {
+		redirectScheme(w, r, dateStr, startStr, endStr, wsID,
+			fmt.Sprintf("Бронировать можно не дальше чем на %d дня вперёд", MaxBookingAheadDays))
 		return
 	}
 

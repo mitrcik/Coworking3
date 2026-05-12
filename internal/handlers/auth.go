@@ -4,8 +4,8 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"net/mail"
 	"strings"
+	"unicode"
 
 	"coworking/internal/auth"
 	"coworking/internal/models"
@@ -15,6 +15,57 @@ import (
 type formError struct {
 	Field   string
 	Message string
+}
+
+// validateEmail returns a human-readable Russian error string if email is
+// invalid, or an empty string when the email is acceptable. It produces short
+// hints aligned with UX feedback: only mentions @, missing domain part, and
+// non-latin characters. An empty email is considered handled elsewhere.
+func validateEmail(email string) string {
+	if email == "" {
+		return ""
+	}
+	for _, r := range email {
+		if unicode.Is(unicode.Cyrillic, r) {
+			return "Неверно указан адрес почты, пишите только латинскими буквами"
+		}
+	}
+	at := strings.IndexByte(email, '@')
+	if at < 0 {
+		return "Адрес почты должен содержать @"
+	}
+	local := email[:at]
+	domain := email[at+1:]
+	if local == "" {
+		return "Адрес почты должен содержать часть до символа @"
+	}
+	if domain == "" {
+		return "Введённый адрес почты не полный. Укажите часть после символа @"
+	}
+	if !strings.Contains(domain, ".") || strings.HasPrefix(domain, ".") || strings.HasSuffix(domain, ".") {
+		return "Введённый адрес почты не полный. Укажите часть после символа @"
+	}
+	// Allow only latin letters, digits and a few punctuation chars; cyrillic
+	// already rejected above.
+	for _, r := range email {
+		if r > unicode.MaxASCII {
+			return "Неверно указан адрес почты, пишите только латинскими буквами"
+		}
+	}
+	return ""
+}
+
+// validateFullName checks for digits and minimum content.
+func validateFullName(name string) string {
+	if name == "" {
+		return ""
+	}
+	for _, r := range name {
+		if unicode.IsDigit(r) {
+			return "ФИО не должно содержать цифры"
+		}
+	}
+	return ""
 }
 
 func (a *App) renderLogin(w http.ResponseWriter, email, errMsg, flash string) {
@@ -45,8 +96,8 @@ func (a *App) loginHandler(w http.ResponseWriter, r *http.Request) {
 			a.renderLogin(w, email, "Заполните email и пароль", "")
 			return
 		}
-		if _, err := mail.ParseAddress(email); err != nil {
-			a.renderLogin(w, email, "Некорректный формат email", "")
+		if msg := validateEmail(email); msg != "" {
+			a.renderLogin(w, email, msg, "")
 			return
 		}
 
@@ -110,8 +161,12 @@ func (a *App) registerHandler(w http.ResponseWriter, r *http.Request) {
 			a.renderRegister(w, fullName, email, "Все поля обязательны")
 			return
 		}
-		if _, err := mail.ParseAddress(email); err != nil {
-			a.renderRegister(w, fullName, email, "Некорректный формат email")
+		if msg := validateFullName(fullName); msg != "" {
+			a.renderRegister(w, fullName, email, msg)
+			return
+		}
+		if msg := validateEmail(email); msg != "" {
+			a.renderRegister(w, fullName, email, msg)
 			return
 		}
 		if len(pw) < 4 {

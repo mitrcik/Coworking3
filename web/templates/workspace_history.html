@@ -1,0 +1,47 @@
+{{define "workspace_history.html"}}{{template "layout" .}}{{end}}
+
+{{define "content"}}
+{{$ws := index .Data "Workspace"}}
+{{$filter := index .Data "Filter"}}
+
+<section class="card">
+  <h2 class="card__title">История бронирований: {{$ws.Name}}</h2>
+  <p class="card__text muted">{{$ws.Type}} · {{$ws.Zone}}</p>
+  <a class="btn btn--secondary" href="/scheme?workspace_id={{$ws.ID}}">← Назад к схеме</a>
+</section>
+
+<section class="card">
+  <form class="form form--row" method="get" action="/workspaces/history">
+    <input type="hidden" name="workspace_id" value="{{$ws.ID}}">
+    <label class="field">
+      <span class="field__label">Фильтр</span>
+      <select class="field__input" name="filter" onchange="this.form.submit()">
+        {{range index $.Data "Filters"}}
+          <option value="{{.Key}}" {{if eq .Key $filter}}selected{{end}}>{{.Label}}</option>
+        {{end}}
+      </select>
+    </label>
+    <noscript>
+      <button class="btn btn--secondary btn--block" type="submit">Применить</button>
+    </noscript>
+  </form>
+
+  {{$bookings := index .Data "Bookings"}}
+  {{if not $bookings}}
+    <p class="muted">Нет бронирований по выбранному фильтру.</p>
+  {{else}}
+    <ul class="list">
+    {{range $bookings}}
+      <li class="list__item">
+        <div class="list__item-main">
+          <div class="list__item-title">{{.Date}}, {{.Start}}–{{.End}}
+            {{if .IsActive}}<span class="badge badge--CONFIRMED">сейчас</span>{{end}}
+          </div>
+          <div class="list__item-sub muted">{{.StatusText}}</div>
+        </div>
+      </li>
+    {{end}}
+    </ul>
+  {{end}}
+</section>
+{{end}}

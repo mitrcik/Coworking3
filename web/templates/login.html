@@ -7,7 +7,7 @@
   <form class="form" method="post" action="/login">
     <label class="field">
       <span class="field__label">Email</span>
-      <input class="field__input" type="email" name="email" placeholder="you@example.com" value="{{with index .Data "Email"}}{{.}}{{end}}" required autofocus>
+      <input class="field__input" type="text" name="email" placeholder="you@example.com" value="{{with index .Data "Email"}}{{.}}{{end}}" required autofocus>
     </label>
     <label class="field">
       <span class="field__label">Пароль</span>
@@ -16,6 +16,5 @@
     <button class="btn btn--primary btn--block" type="submit">Войти</button>
   </form>
   <div class="hint">Нет аккаунта? <a href="/register">Зарегистрироваться</a></div>
-  <div class="hint hint--muted">Админ: <b>admin@example.com</b> / <b>admin</b></div>
 </section>
 {{end}}

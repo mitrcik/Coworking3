@@ -43,6 +43,8 @@ func init() {
 		"bookings.html",
 		"admin.html",
 		"report.html",
+		"settings.html",
+		"workspace_history.html",
 	}
 	for _, p := range pages {
 		pagePath := filepath.Join("web", "templates", p)
@@ -68,6 +70,9 @@ func (a *App) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/bookings", a.requireUser(a.bookingsHandler))
 	mux.HandleFunc("/bookings/create", a.requireUser(a.bookingCreateHandler))
 	mux.HandleFunc("/bookings/cancel", a.requireUser(a.bookingCancelHandler))
+	mux.HandleFunc("/settings", a.requireUser(a.settingsHandler))
+	mux.HandleFunc("/workspaces/history", a.requireUser(a.workspaceHistoryHandler))
+	mux.HandleFunc("/api/scheme", a.requireUser(a.schemeAPIHandler))
 	mux.HandleFunc("/admin", a.requireAdmin(a.adminPanelHandler))
 	mux.HandleFunc("/admin/workspaces/create", a.requireAdmin(a.adminWorkspaceCreateHandler))
 	mux.HandleFunc("/admin/workspaces/update", a.requireAdmin(a.adminWorkspaceUpdateHandler))

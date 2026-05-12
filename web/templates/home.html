@@ -21,19 +21,25 @@
       <div class="tile__icon">📋</div>
       <div class="tile__label">Мои брони</div>
     </a>
-    <a class="tile" href="/login">
-      <div class="tile__icon">🔐</div>
-      <div class="tile__label">Войти</div>
-    </a>
-    <a class="tile" href="/register">
-      <div class="tile__icon">📝</div>
-      <div class="tile__label">Регистрация</div>
-    </a>
+    {{if .IsLoggedIn}}
+      <a class="tile" href="/settings">
+        <div class="tile__icon">⚙️</div>
+        <div class="tile__label">Настройки</div>
+      </a>
+      <a class="tile" href="/logout">
+        <div class="tile__icon">🚪</div>
+        <div class="tile__label">Выйти</div>
+      </a>
+    {{else}}
+      <a class="tile" href="/login">
+        <div class="tile__icon">🔐</div>
+        <div class="tile__label">Войти</div>
+      </a>
+      <a class="tile" href="/register">
+        <div class="tile__icon">📝</div>
+        <div class="tile__label">Регистрация</div>
+      </a>
+    {{end}}
   </div>
-</section>
-
-<section class="card">
-  <h3 class="card__title">Подсказка</h3>
-  <p class="card__text">Войдите по адресу <b>admin@example.com</b> с паролем <b>admin</b>, чтобы попасть в админ-панель (этап&nbsp;3).</p>
 </section>
 {{end}}
