@@ -171,6 +171,12 @@ body {
   font-weight: 500;
   user-select: none;
 }
+.map__cell-empty {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.015);
+  pointer-events: none;
+}
 .map__seat-name { font-size: 16px; font-weight: 700; }
 .map__seat-type { font-size: 10px; opacity: 0.85; }
 .map__seat.is-free { background: #34c759; }

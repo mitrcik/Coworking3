@@ -39,6 +39,32 @@ type coworkingView struct {
 	GridRows int    `json:"grid_rows"`
 }
 
+// schemeEmptyCell is a (1-based) grid position that has no workspace placed on
+// it. Rendered as a faint dashed placeholder so that a sparse coworking still
+// reads as a grid instead of a few floating seats.
+type schemeEmptyCell struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+}
+
+// emptyCells returns every (x, y) inside cols×rows that is not occupied by a
+// workspace in views.
+func emptyCells(views []schemeWorkspaceView, cols, rows int) []schemeEmptyCell {
+	occupied := make(map[[2]int]bool, len(views))
+	for _, v := range views {
+		occupied[[2]int{v.X, v.Y}] = true
+	}
+	out := make([]schemeEmptyCell, 0, cols*rows-len(views))
+	for y := 1; y <= rows; y++ {
+		for x := 1; x <= cols; x++ {
+			if !occupied[[2]int{x, y}] {
+				out = append(out, schemeEmptyCell{X: x, Y: y})
+			}
+		}
+	}
+	return out
+}
+
 // AllowedDurations is the fixed set of selectable booking durations (minutes).
 // Used both in the UI (radio buttons) and on the server when validating.
 var AllowedDurations = []int{5, 15, 30, 45, 60, 90, 120, 180}
@@ -205,6 +231,7 @@ func (a *App) schemeHandler(w http.ResponseWriter, r *http.Request) {
 	pd := pageDataFor(r, "Схема коворкинга", "scheme")
 	pd.Data = map[string]any{
 		"Workspaces":     views,
+		"EmptyCells":     emptyCells(views, gridCols(chosen), gridRows(chosen)),
 		"Date":           f.DateStr,
 		"Start":          f.StartStr,
 		"End":            f.EndStr,
@@ -392,6 +419,7 @@ type schemeAPIResponse struct {
 	CanBook    bool                  `json:"can_book"`
 	Selected   *schemeWorkspaceView  `json:"selected,omitempty"`
 	Workspaces []schemeWorkspaceView `json:"workspaces"`
+	EmptyCells []schemeEmptyCell     `json:"empty_cells"`
 	Coworking  *coworkingView        `json:"coworking,omitempty"`
 	Coworkings []coworkingView       `json:"coworkings"`
 	Cooldown   cooldownInfo          `json:"cooldown"`
@@ -440,6 +468,7 @@ func (a *App) schemeAPIHandler(w http.ResponseWriter, r *http.Request) {
 		CanBook:    canBook,
 		Selected:   selected,
 		Workspaces: views,
+		EmptyCells: emptyCells(views, gridCols(chosen), gridRows(chosen)),
 		Coworking:  chosenView(chosen),
 		Coworkings: coworkingViews(allCoworkings),
 		Cooldown:   cooldown,
