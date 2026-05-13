@@ -100,6 +100,9 @@
   </div>
   <div class="map-wrap">
     <div class="map" id="scheme-map" style="--cols: {{index .Data "GridCols"}}; --rows: {{index .Data "GridRows"}};">
+      {{range index .Data "EmptyCells"}}
+        <div class="map__cell-empty" style="grid-column: {{.X}}; grid-row: {{.Y}};" aria-hidden="true"></div>
+      {{end}}
       {{$selectedID := ""}}{{with index .Data "Selected"}}{{$selectedID = .ID}}{{end}}
       {{range index .Data "Workspaces"}}
         <a class="map__seat is-{{.StatusKey}}{{if eq .ID $selectedID}} is-selected{{end}}"

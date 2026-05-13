@@ -217,14 +217,24 @@
       map.style.setProperty("--cols", String(data.coworking.grid_cols));
       map.style.setProperty("--rows", String(data.coworking.grid_rows));
     }
-    renderMap(data.workspaces || [], data.selected);
+    renderMap(data.workspaces || [], data.selected, data.empty_cells || []);
     renderSelected(data);
   }
 
-  function renderMap(seats, selected) {
+  function renderMap(seats, selected, emptyCells) {
     if (!map) return;
     var selID = selected && selected.id ? selected.id : null;
     map.innerHTML = "";
+    if (emptyCells) {
+      for (var e = 0; e < emptyCells.length; e++) {
+        var cell = document.createElement("div");
+        cell.className = "map__cell-empty";
+        cell.setAttribute("aria-hidden", "true");
+        cell.style.gridColumn = String(emptyCells[e].x);
+        cell.style.gridRow = String(emptyCells[e].y);
+        map.appendChild(cell);
+      }
+    }
     for (var i = 0; i < seats.length; i++) {
       var s = seats[i];
       var node = document.createElement("a");
