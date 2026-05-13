@@ -75,22 +75,24 @@
 <section class="card">
   <h3 class="card__title">Места: {{.Name}} ({{.GridCols}}×{{.GridRows}})</h3>
 
-  <div class="admin-grid" style="--cols: {{.GridCols}}; --rows: {{.GridRows}};">
-    {{range $row := $grid}}
-      {{range $cell := $row}}
-        <div class="admin-grid__cell {{if $cell.Workspace}}is-filled{{else}}is-empty{{end}}"
-             data-x="{{$cell.X}}" data-y="{{$cell.Y}}">
-          <div class="admin-grid__coord">({{$cell.X}};{{$cell.Y}})</div>
-          {{with $cell.Workspace}}
-            <div class="admin-grid__name">{{.Name}}</div>
-            <div class="admin-grid__type muted">{{.Type}}</div>
-            {{if not .IsAvailable}}<div class="badge badge--CANCELLED_BY_USER">off</div>{{end}}
-          {{else}}
-            <div class="muted">пусто</div>
-          {{end}}
-        </div>
+  <div class="admin-grid-wrap">
+    <div class="admin-grid" style="--cols: {{.GridCols}}; --rows: {{.GridRows}};">
+      {{range $row := $grid}}
+        {{range $cell := $row}}
+          <div class="admin-grid__cell {{if $cell.Workspace}}is-filled{{else}}is-empty{{end}}"
+               data-x="{{$cell.X}}" data-y="{{$cell.Y}}">
+            <div class="admin-grid__coord">({{$cell.X}};{{$cell.Y}})</div>
+            {{with $cell.Workspace}}
+              <div class="admin-grid__name">{{.Name}}</div>
+              <div class="admin-grid__type muted">{{.Type}}</div>
+              {{if not .IsAvailable}}<div class="badge badge--CANCELLED_BY_USER">off</div>{{end}}
+            {{else}}
+              <div class="muted">пусто</div>
+            {{end}}
+          </div>
+        {{end}}
       {{end}}
-    {{end}}
+    </div>
   </div>
 
   <details class="form-block">
