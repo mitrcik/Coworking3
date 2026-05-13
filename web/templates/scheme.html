@@ -98,20 +98,22 @@
     <span class="legend__chip legend__chip--busy"></span> Занято
     <span class="legend__chip legend__chip--off"></span> Недоступно
   </div>
-  <div class="map" id="scheme-map" style="--cols: {{index .Data "GridCols"}}; --rows: {{index .Data "GridRows"}};">
-    {{$selectedID := ""}}{{with index .Data "Selected"}}{{$selectedID = .ID}}{{end}}
-    {{range index .Data "Workspaces"}}
-      <a class="map__seat is-{{.StatusKey}}{{if eq .ID $selectedID}} is-selected{{end}}"
-         data-workspace-id="{{.ID}}"
-         data-status="{{.StatusKey}}"
-         style="grid-column: {{.X}}; grid-row: {{.Y}};"
-         title="{{.Name}} — {{.StatusText}}{{if .BusyLabel}} {{.BusyLabel}}{{end}}"
-         href="/scheme?workspace_id={{.ID}}">
-        <div class="map__seat-name">{{.Name}}</div>
-        <div class="map__seat-type">{{.StatusText}}</div>
-        {{if .BusyLabel}}<div class="map__seat-label">{{.BusyLabel}}</div>{{end}}
-      </a>
-    {{end}}
+  <div class="map-wrap">
+    <div class="map" id="scheme-map" style="--cols: {{index .Data "GridCols"}}; --rows: {{index .Data "GridRows"}};">
+      {{$selectedID := ""}}{{with index .Data "Selected"}}{{$selectedID = .ID}}{{end}}
+      {{range index .Data "Workspaces"}}
+        <a class="map__seat is-{{.StatusKey}}{{if eq .ID $selectedID}} is-selected{{end}}"
+           data-workspace-id="{{.ID}}"
+           data-status="{{.StatusKey}}"
+           style="grid-column: {{.X}}; grid-row: {{.Y}};"
+           title="{{.Name}} — {{.StatusText}}{{if .BusyLabel}} {{.BusyLabel}}{{end}}"
+           href="/scheme?workspace_id={{.ID}}">
+          <div class="map__seat-name">{{.Name}}</div>
+          <div class="map__seat-type">{{.StatusText}}</div>
+          {{if .BusyLabel}}<div class="map__seat-label">{{.BusyLabel}}</div>{{end}}
+        </a>
+      {{end}}
+    </div>
   </div>
 </section>
 

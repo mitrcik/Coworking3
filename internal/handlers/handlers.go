@@ -165,6 +165,10 @@ func (a *App) bookingsHandler(w http.ResponseWriter, r *http.Request) {
 	statusFilter := r.FormValue("status") // CONFIRMED, COMPLETED, CANCELLED, ALL
 	periodFilter := r.FormValue("period") // all, future, past
 
+	if _, err := a.Bookings.MarkPastCompleted(r.Context(), time.Now()); err != nil {
+		log.Printf("bookings: mark past completed: %v", err)
+	}
+
 	rows, err := a.Bookings.ListByUser(r.Context(), user.ID, nil)
 	if err != nil {
 		log.Printf("bookings: list: %v", err)

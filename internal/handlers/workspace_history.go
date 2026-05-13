@@ -39,6 +39,9 @@ func (a *App) workspaceHistoryHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/scheme", http.StatusSeeOther)
 		return
 	}
+	if _, err := a.Bookings.MarkPastCompleted(r.Context(), time.Now()); err != nil {
+		log.Printf("workspace history: mark past completed: %v", err)
+	}
 	ws, err := a.Workspaces.FindByID(r.Context(), wsID)
 	if err != nil {
 		if errors.Is(err, repo.ErrWorkspaceNotFound) {

@@ -170,6 +170,24 @@ func (r *BookingRepo) CountActiveByUser(ctx context.Context, userID string, now 
 	return n, nil
 }
 
+// MarkPastCompleted promotes every still-CONFIRMED booking whose end_time has
+// already passed to the COMPLETED status. Called lazily at the top of
+// /bookings, /admin and as a periodic sweep on the server so the UI never
+// shows "Активно" for a booking that is actually over.
+func (r *BookingRepo) MarkPastCompleted(ctx context.Context, now time.Time) (int64, error) {
+	res, err := r.DB.ExecContext(ctx, `
+        UPDATE bookings
+           SET status = 'COMPLETED'
+         WHERE status = 'CONFIRMED'
+           AND end_time <= $1
+    `, now)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
 // Create inserts a new booking and returns its ID.
 func (r *BookingRepo) Create(ctx context.Context, userID, workspaceID string, start, end time.Time) (string, error) {
 	const q = `

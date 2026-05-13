@@ -30,6 +30,9 @@ func (a *App) adminPanelHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Не удалось обработать форму", http.StatusBadRequest)
 		return
 	}
+	if _, err := a.Bookings.MarkPastCompleted(r.Context(), time.Now()); err != nil {
+		log.Printf("admin: mark past completed: %v", err)
+	}
 	coworkings, err := a.Coworkings.List(r.Context())
 	if err != nil {
 		log.Printf("admin list coworkings: %v", err)
