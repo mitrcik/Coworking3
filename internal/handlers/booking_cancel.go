@@ -2,8 +2,11 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"log"
+	"math"
 	"net/http"
+	"net/url"
 	"time"
 
 	"coworking/internal/auth"
@@ -18,7 +21,9 @@ import (
 //   2. booking exists
 //   3. booking belongs to current user
 //   4. booking is currently CONFIRMED
-//   5. booking start is still in the future
+//   5. booking has not ended yet (start may already be in the past — user can
+//      interrupt an active session)
+//   6. user is not in cancellation cool-down (3+ cancels in 24 h → 12 h block)
 func (a *App) bookingCancelHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -56,8 +61,24 @@ func (a *App) bookingCancelHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/bookings?flash_err=Это+бронирование+уже+нельзя+отменить", http.StatusSeeOther)
 		return
 	}
-	if !b.StartTime.After(time.Now()) {
-		http.Redirect(w, r, "/bookings?flash_err=Бронирование+уже+началось+или+завершилось", http.StatusSeeOther)
+	now := time.Now()
+	if !b.EndTime.After(now) {
+		http.Redirect(w, r, "/bookings?flash_err=Бронирование+уже+завершилось", http.StatusSeeOther)
+		return
+	}
+	if until, err := a.Bookings.CooldownUntil(r.Context(), user.ID, now); err != nil {
+		log.Printf("cancel: cooldown: %v", err)
+		http.Error(w, "Внутренняя ошибка", http.StatusInternalServerError)
+		return
+	} else if !until.IsZero() {
+		hoursLeft := int(math.Ceil(time.Until(until).Hours()))
+		if hoursLeft < 1 {
+			hoursLeft = 1
+		}
+		http.Redirect(w, r,
+			"/bookings?flash_err="+url.QueryEscape(fmt.Sprintf(
+				"Таймаут за частую отмену бронирований. Осталось %d час(ов).", hoursLeft)),
+			http.StatusSeeOther)
 		return
 	}
 	if err := a.Bookings.Cancel(r.Context(), b.ID, false); err != nil {

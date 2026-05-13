@@ -151,12 +151,6 @@
           <label class="checkbox"><input type="checkbox" name="is_available" {{if .IsAvailable}}checked{{end}}> Доступно</label>
           <button class="btn btn--primary btn--block" type="submit">Сохранить</button>
         </form>
-        <form method="post" action="/admin/workspaces/toggle" class="inline-form">
-          <input type="hidden" name="workspace_id" value="{{.ID}}">
-          <input type="hidden" name="coworking_id" value="{{.CoworkingID}}">
-          <input type="hidden" name="available" value="{{if .IsAvailable}}0{{else}}1{{end}}">
-          <button class="btn btn--secondary btn--block" type="submit">{{if .IsAvailable}}Отключить{{else}}Включить{{end}}</button>
-        </form>
         <form method="post" action="/admin/workspaces/delete" class="inline-form" onsubmit="return confirm('Удалить место?');">
           <input type="hidden" name="workspace_id" value="{{.ID}}">
           <input type="hidden" name="coworking_id" value="{{.CoworkingID}}">

@@ -216,7 +216,9 @@ func (a *App) bookingsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		if b.Status == models.StatusConfirmed {
 			v.IsActiveNow = !b.EndTime.Before(now)
-			v.CanCancel = b.StartTime.After(now) // can cancel only future bookings
+			// User can cancel any of their own CONFIRMED bookings until end_time —
+			// including an already-running session ("прервать активное бронирование").
+			v.CanCancel = b.EndTime.After(now)
 		}
 		views = append(views, v)
 	}

@@ -44,9 +44,10 @@
           <div class="list__item-sub">{{.Date}}, {{.Start}}–{{.End}}</div>
         </div>
         {{if .CanCancel}}
-          <form method="post" action="/bookings/cancel" onsubmit="return confirm('Отменить бронирование?');">
+          <form method="post" action="/bookings/cancel"
+                onsubmit="return confirm({{if .IsActiveNow}}'Прервать активное бронирование? Время уже не вернётся.'{{else}}'Отменить бронирование?'{{end}});">
             <input type="hidden" name="booking_id" value="{{.ID}}">
-            <button class="btn btn--danger" type="submit">Отменить</button>
+            <button class="btn btn--danger" type="submit">{{if .IsActiveNow}}Прервать{{else}}Отменить{{end}}</button>
           </form>
         {{end}}
       </li>
