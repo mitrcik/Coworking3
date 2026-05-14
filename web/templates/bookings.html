@@ -45,7 +45,9 @@
         </div>
         {{if .CanCancel}}
           <form method="post" action="/bookings/cancel"
-                onsubmit="return confirm({{if .IsActiveNow}}'Прервать активное бронирование? Время уже не вернётся.'{{else}}'Отменить бронирование?'{{end}});">
+                data-confirm="{{if .IsActiveNow}}Прервать активное бронирование? Время уже не вернётся.{{else}}Отменить бронирование?{{end}}"
+                data-confirm-title="{{if .IsActiveNow}}Прервать бронирование{{else}}Отмена брони{{end}}"
+                data-confirm-ok="{{if .IsActiveNow}}Прервать{{else}}Отменить{{end}}">
             <input type="hidden" name="booking_id" value="{{.ID}}">
             <button class="btn btn--danger" type="submit">{{if .IsActiveNow}}Прервать{{else}}Отменить{{end}}</button>
           </form>
