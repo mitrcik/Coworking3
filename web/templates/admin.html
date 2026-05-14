@@ -12,7 +12,6 @@
 
 <section class="card">
   <h2 class="card__title">Админ-панель</h2>
-  {{with .Flash}}{{if .}}<div class="success">{{.}}</div>{{end}}{{end}}
   {{with index .Data "FlashErr"}}{{if .}}<div class="error">{{.}}</div>{{end}}{{end}}
   <p><a class="btn btn--secondary btn--block" href="/admin/report">Перейти к отчётам →</a></p>
 </section>
@@ -62,7 +61,9 @@
         <button class="btn btn--primary btn--block" type="submit">Сохранить</button>
       </form>
       <form method="post" action="/admin/coworkings/delete" class="inline-form"
-            onsubmit="return confirm('Удалить коворкинг «{{.Name}}»? Все места в нём должны быть удалены заранее.');">
+            data-confirm="Удалить коворкинг «{{.Name}}»? Все места в нём должны быть удалены заранее."
+            data-confirm-title="Удалить коворкинг"
+            data-confirm-ok="Удалить">
         <input type="hidden" name="coworking_id_target" value="{{.ID}}">
         <input type="hidden" name="coworking_id" value="{{.ID}}">
         <button class="btn btn--danger btn--block" type="submit">Удалить</button>
@@ -151,7 +152,10 @@
           <label class="checkbox"><input type="checkbox" name="is_available" {{if .IsAvailable}}checked{{end}}> Доступно</label>
           <button class="btn btn--primary btn--block" type="submit">Сохранить</button>
         </form>
-        <form method="post" action="/admin/workspaces/delete" class="inline-form" onsubmit="return confirm('Удалить место?');">
+        <form method="post" action="/admin/workspaces/delete" class="inline-form"
+              data-confirm="Удалить место?"
+              data-confirm-title="Удалить место"
+              data-confirm-ok="Удалить">
           <input type="hidden" name="workspace_id" value="{{.ID}}">
           <input type="hidden" name="coworking_id" value="{{.CoworkingID}}">
           <button class="btn btn--danger btn--block" type="submit">Удалить</button>
@@ -212,7 +216,10 @@
         </div>
         <div class="admin-actions">
           {{if .CanCancel}}
-            <form method="post" action="/admin/bookings/cancel" class="inline-form" onsubmit="return confirm('Отменить?');">
+            <form method="post" action="/admin/bookings/cancel" class="inline-form"
+                  data-confirm="Отменить бронирование?"
+                  data-confirm-title="Отмена брони"
+                  data-confirm-ok="Отменить">
               <input type="hidden" name="booking_id" value="{{.ID}}">
               <button class="btn btn--danger" type="submit">Отменить</button>
             </form>

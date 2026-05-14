@@ -15,11 +15,23 @@
   </div>
 </header>
 
-{{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
-
 <main class="app-main">
+  {{if .Flash}}<div class="success" role="status">{{.Flash}}</div>{{end}}
   {{template "content" .}}
 </main>
+
+<div id="app-modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="app-modal-title">
+  <div class="modal__backdrop" data-modal-backdrop></div>
+  <div class="modal__dialog" role="document">
+    <h3 class="modal__title" id="app-modal-title" data-modal-title>Подтверждение</h3>
+    <p class="modal__body" data-modal-body></p>
+    <div class="modal__actions">
+      <button type="button" class="btn btn--secondary" data-modal-cancel>Отмена</button>
+      <button type="button" class="btn btn--danger" data-modal-ok>Подтвердить</button>
+    </div>
+  </div>
+</div>
+<script src="/static/js/modal.js" defer></script>
 
 <nav class="bottom-nav">
   <a class="bottom-nav__item {{if eq .ActiveTab "home"}}is-active{{end}}" href="/">

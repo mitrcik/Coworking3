@@ -116,12 +116,12 @@ body {
 .hint a { color: var(--primary); }
 
 .flash {
-  position: sticky;
-  top: var(--header-h);
-  background: var(--warn);
-  color: #fff;
-  padding: 8px var(--pad);
+  background: #fff7e1;
+  color: #8a5a00;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
+  margin-bottom: 8px;
 }
 
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -176,6 +176,7 @@ body {
   border-radius: var(--radius-sm);
   background: rgba(0, 0, 0, 0.015);
   pointer-events: none;
+  min-height: 80px;
 }
 .map__seat-name { font-size: 16px; font-weight: 700; }
 .map__seat-type { font-size: 10px; opacity: 0.85; }
@@ -439,6 +440,53 @@ details[open] > summary { margin-bottom: 8px; }
   background: #fdecec;
   color: #b53a3a;
   border: 1px solid #f0b9b9;
+}
+
+/* In-page modal dialog used instead of native window.confirm(). */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 22, 35, 0.45);
+}
+.modal__dialog {
+  position: relative;
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 18px 16px 16px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 18px 40px rgba(15, 22, 35, 0.18);
+}
+.modal__title {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+.modal__body {
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+.modal__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.modal__actions .btn {
+  flex: 0 0 auto;
+}
+html.is-modal-open,
+html.is-modal-open body {
+  overflow: hidden;
 }
 
 /* Coworking combobox on /scheme */

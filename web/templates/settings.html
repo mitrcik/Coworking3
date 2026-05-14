@@ -3,7 +3,6 @@
 {{define "content"}}
 <section class="card">
   <h2 class="card__title">Настройки аккаунта</h2>
-  {{with .Flash}}{{if .}}<div class="success">{{.}}</div>{{end}}{{end}}
   {{with index .Data "Error"}}{{if .}}<div class="error">{{.}}</div>{{end}}{{end}}
 </section>
 
