@@ -4,7 +4,6 @@
 <section class="card">
   <h2 class="card__title">Отчёт</h2>
   <p class="muted"><a href="/admin">← к админ-панели</a></p>
-  {{with .Flash}}{{if .}}<div class="success">{{.}}</div>{{end}}{{end}}
   {{with index .Data "Error"}}{{if .}}<div class="error">{{.}}</div>{{end}}{{end}}
 
   <form class="form form--row" method="get" action="/admin/report">

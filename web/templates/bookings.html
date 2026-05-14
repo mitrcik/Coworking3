@@ -3,7 +3,6 @@
 {{define "content"}}
 <section class="card">
   <h2 class="card__title">Мои бронирования</h2>
-  {{with .Flash}}{{if .}}<div class="success">{{.}}</div>{{end}}{{end}}
   {{with index .Data "FlashErr"}}{{if .}}<div class="error">{{.}}</div>{{end}}{{end}}
 
   <form class="form form--row" method="get" action="/bookings">
