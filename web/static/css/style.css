@@ -22,6 +22,7 @@
 html, body {
   margin: 0;
   padding: 0;
+  scrollbar-gutter: stable;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
@@ -487,6 +488,13 @@ details[open] > summary { margin-bottom: 8px; }
 html.is-modal-open,
 html.is-modal-open body {
   overflow: hidden;
+}
+
+@media (max-width: 480px) {
+  .modal { padding: 12px; }
+  .modal__dialog { padding: 16px 14px 14px; }
+  .modal__title { font-size: 15px; }
+  .modal__body { font-size: 14px; }
 }
 
 /* Coworking combobox on /scheme */
